@@ -3,11 +3,7 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-scripts=(
-    "qwen25_3b_dapo_gsm8k_lora.sh"
-    "qwen25_3b_dapo_gsm8k_full.sh"
-)
 
-for script in "${scripts[@]}"; do
-    bash "${script_dir}/${script}"
+for mode in lora full; do
+    bash "${script_dir}/qwen25_3b_dapo_gsm8k_${mode}.sh"
 done
