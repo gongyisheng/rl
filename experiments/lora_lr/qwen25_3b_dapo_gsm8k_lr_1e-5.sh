@@ -34,7 +34,7 @@ CKPT_ARGS=(
    # --ref-load /root/models/Qwen2.5-3B-Instruct/
    --megatron-to-hf-mode bridge
    --save "${ckpt_run_dir}"
-   --save-interval 10
+   --save-interval 5
 )
 
 LORA_ARGS=(

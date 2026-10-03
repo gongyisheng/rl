@@ -1,6 +1,6 @@
 # LoRA learning-rate sweep
 
-Each learning-rate script contains the full training configuration copied and adapted from Qwen2.5 GSM8K; follow its [setup instructions](../qwen25_gsm8k/readme.md).
+Each learning-rate script contains the full training configuration copied and adapted from Qwen2.5 GSM8K; follow its [setup instructions](../../tasks/gsm8k/readme.md).
 
 ## Setup
 
