@@ -33,7 +33,7 @@ CKPT_ARGS=(
    --hf-checkpoint /root/models/Qwen2.5-3B/
    # --ref-load /root/models/Qwen2.5-3B-Instruct/
    --megatron-to-hf-mode bridge
-   --save "${ckpt_run_dir}/checkpoints"
+   --save "${ckpt_run_dir}"
    --save-interval 10
 )
 
@@ -52,7 +52,7 @@ ROLLOUT_ARGS=(
    --apply-chat-template
    --rollout-shuffle
    --rm-type math
-   --num-rollout 100
+   --num-rollout 250
    --rollout-batch-size 32
    --n-samples-per-prompt 8
    --rollout-max-response-len 1024
@@ -65,9 +65,9 @@ ROLLOUT_ARGS=(
 
 EVAL_ARGS=(
    # --skip-eval-before-train
-   --eval-interval 10
+   --eval-interval 5
    --eval-prompt-data gsm8k /root/datasets/gsm8k/test.parquet
-   --n-samples-per-eval-prompt 4
+   --n-samples-per-eval-prompt 1
    --eval-max-response-len 1024
    --eval-top-k 1
 )
