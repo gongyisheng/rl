@@ -1,7 +1,7 @@
 # Repository Structure
 
 - `experiments/<experiment>/`: experiment variants and parameter sweeps.
-- `tasks/<task>/`: standard training configurations and setup instructions.
+- `tasks/<task>/`: one folder per standard task, such as `search-r1` or `retool`.
 
 # Rules
 
