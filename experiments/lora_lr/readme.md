@@ -1,6 +1,6 @@
 # LoRA learning-rate sweep
 
-This experiment uses a [local configuration](run_lora_sm120.sh) copied and adapted from Qwen2.5 GSM8K; follow its [setup instructions](../qwen25_gsm8k/readme.md).
+Each learning-rate script contains the full training configuration copied and adapted from Qwen2.5 GSM8K; follow its [setup instructions](../qwen25_gsm8k/readme.md).
 
 ## Setup
 
@@ -20,12 +20,12 @@ wandb login
 bash experiments/lora_lr/run.sh
 ```
 
-The sweep runs sequentially at `1e-6`, `2e-6`, `5e-6`, `1e-5`, `2e-5`, `5e-5`, and `1e-4`. Each run writes checkpoints and `train.log` to `/data/lora/lora_lr/lr-<learning-rate>/`.
-
-Runs are logged to the W&B project `rl-lora-lr` with names `qwen2.5-3B-dapo-gsm8k-lr-<learning-rate>`. Miles uses the W&B group as the run name, with its random suffix disabled for this sweep.
-
-Override the output root when needed:
+The sweep runs the seven learning-rate scripts sequentially. Each script can also run independently, for example:
 
 ```bash
-OUTPUT_DIR=/data/lora/experiments/lora_lr bash experiments/lora_lr/run.sh
+bash experiments/lora_lr/qwen25_3b_dapo_gsm8k_lr_1e-5.sh
 ```
+
+Each run writes checkpoints to `/data/lora/lora_lr/lr_<learning-rate>/checkpoints/`.
+
+Runs are logged to the W&B project `rl-lora-lr` with names `qwen2.5-3B-dapo-gsm8k-lr-<learning-rate>`. Miles uses the W&B group as the run name, with its random suffix disabled for this sweep.
