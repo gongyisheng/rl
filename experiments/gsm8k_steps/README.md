@@ -1,6 +1,6 @@
 # Qwen2.5 3B DAPO GSM8K runs
 
-Use the [baseline setup instructions](../../tasks/gsm8k/readme.md), then launch both runs sequentially (LoRA followed by full fine-tuning):
+Use the [baseline setup instructions](../../tasks/gsm8k/README.md), then launch both runs sequentially (LoRA followed by full fine-tuning):
 
 ```bash
 bash experiments/gsm8k_steps/run.sh

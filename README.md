@@ -3,7 +3,7 @@ rl experiments
 
 infra: [miles](https://github.com/radixark/miles)
 
-standard configurations are in [tasks](tasks/readme.md)
+standard configurations are in [tasks](tasks/README.md)
 
 experiment variants are in [experiments](experiments/)
 
