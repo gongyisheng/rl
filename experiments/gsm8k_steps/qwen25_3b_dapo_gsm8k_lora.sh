@@ -26,8 +26,8 @@ CKPT_ARGS=(
    --hf-checkpoint /root/models/Qwen2.5-3B/
    # --ref-load /root/models/Qwen2.5-3B-Instruct/
    --megatron-to-hf-mode bridge
-   --save /data/lora/
-   --save-interval 10
+   --save /data/gsm8k_steps/qwen25_3b_dapo_gsm8k_lora/checkpoints
+   --save-interval 5
 )
 
 LORA_ARGS=(
@@ -45,7 +45,7 @@ ROLLOUT_ARGS=(
    --apply-chat-template
    --rollout-shuffle
    --rm-type math
-   --num-rollout 100
+   --num-rollout 1000
    --rollout-batch-size 32
    --n-samples-per-prompt 8
    --rollout-max-response-len 1024
@@ -58,9 +58,9 @@ ROLLOUT_ARGS=(
 
 EVAL_ARGS=(
    # --skip-eval-before-train
-   --eval-interval 10
+   --eval-interval 5
    --eval-prompt-data gsm8k /root/datasets/gsm8k/test.parquet
-   --n-samples-per-eval-prompt 4
+   --n-samples-per-eval-prompt 1
    --eval-max-response-len 1024
    --eval-top-k 1
 )
@@ -104,8 +104,8 @@ OPTIMIZER_ARGS=(
 WANDB_ARGS=(
    --use-wandb
    --wandb-host https://wandb.ai/
-   --wandb-project miles-rl-dev
-   --wandb-group qwen2.5-3B-dapo-lora
+   --wandb-project rl-gsm8k-steps
+   --wandb-group qwen25_3b_dapo_gsm8k_lora
 )
 
 SGLANG_ARGS=(
@@ -150,14 +150,14 @@ ray job submit --address="http://127.0.0.1:8265" \
    --colocate \
    --calculate-per-token-loss \
    --use-miles-router \
-   ${MODEL_ARGS[@]} \
-   ${CKPT_ARGS[@]} \
-   ${LORA_ARGS[@]} \
-   ${OPTIMIZER_ARGS[@]} \
-   ${GRPO_ARGS[@]} \
-   ${WANDB_ARGS[@]} \
-   ${PERF_ARGS[@]} \
-   ${EVAL_ARGS[@]} \
-   ${SGLANG_ARGS[@]} \
-   ${MISC_ARGS[@]} \
-   ${ROLLOUT_ARGS[@]}
+   "${MODEL_ARGS[@]}" \
+   "${CKPT_ARGS[@]}" \
+   "${LORA_ARGS[@]}" \
+   "${OPTIMIZER_ARGS[@]}" \
+   "${GRPO_ARGS[@]}" \
+   "${WANDB_ARGS[@]}" \
+   "${PERF_ARGS[@]}" \
+   "${EVAL_ARGS[@]}" \
+   "${SGLANG_ARGS[@]}" \
+   "${MISC_ARGS[@]}" \
+   "${ROLLOUT_ARGS[@]}"
