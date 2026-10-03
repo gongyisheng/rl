@@ -144,7 +144,7 @@ ray job submit --address="http://127.0.0.1:8265" \
         "NVTE_FLASH_ATTN_V4": "0"
      }
    }' \
-   -- python3 train.py \
+   -- python3 /root/miles/train.py \
    --actor-num-nodes 1 \
    --actor-num-gpus-per-node $GPUS_PER_NODE \
    --colocate \
