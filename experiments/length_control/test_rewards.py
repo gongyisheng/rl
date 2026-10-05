@@ -10,8 +10,8 @@ from types import ModuleType
 import unittest
 from unittest import mock
 
-from experiments.gsm8k_length_control import rewards
-from experiments.gsm8k_length_control.rewards import reward_v1, reward_v2
+from experiments.length_control import rewards
+from experiments.length_control.rewards import reward_v1, reward_v2
 
 
 def make_sample(
@@ -246,11 +246,11 @@ class EvaluationAdapterTests(unittest.TestCase):
             },
         )
         self.modules.start()
-        sys.modules.pop("experiments.gsm8k_length_control.evaluation", None)
-        self.evaluation = importlib.import_module("experiments.gsm8k_length_control.evaluation")
+        sys.modules.pop("experiments.length_control.evaluation", None)
+        self.evaluation = importlib.import_module("experiments.length_control.evaluation")
 
     def tearDown(self) -> None:
-        sys.modules.pop("experiments.gsm8k_length_control.evaluation", None)
+        sys.modules.pop("experiments.length_control.evaluation", None)
         self.modules.stop()
 
     def test_uses_self_state_without_mutating_training_arguments(self) -> None:

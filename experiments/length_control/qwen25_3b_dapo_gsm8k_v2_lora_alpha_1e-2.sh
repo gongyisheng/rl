@@ -18,12 +18,12 @@ pkill -9 python
 
 set -ex
 
-rollout_run_dir="/data/rollouts/gsm8k_length_control/qwen25_3b_dapo_gsm8k_v2_lora_alpha_1e-2/$(date -u +%Y%m%dT%H%M%S%N)"
+rollout_run_dir="/data/rollouts/length_control/qwen25_3b_dapo_gsm8k_v2_lora_alpha_1e-2/$(date -u +%Y%m%dT%H%M%S%N)"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 MILES_ROOT="${MILES_ROOT:-/root/miles}"
-OUTPUT_DIR="${OUTPUT_DIR:-/data/lora/gsm8k_length_control}"
+OUTPUT_DIR="${OUTPUT_DIR:-/data/lora/length_control}"
 CONFIG_PATH="${SCRIPT_DIR}/reward_v2_alpha_1e-2.yaml"
 
 MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_utils.py" "qwen2.5-3B")"
@@ -37,13 +37,13 @@ ROLLOUT_ARGS=(
    --apply-chat-template --rollout-shuffle --rm-type math --num-rollout 100
    --rollout-batch-size 32 --n-samples-per-prompt 8 --rollout-max-response-len 1024
    --rollout-temperature 1 --over-sampling-batch-size 32
-   --custom-rm-path experiments.gsm8k_length_control.rewards.v2
+   --custom-rm-path experiments.length_control.rewards.v2
    --group-rm
    --dynamic-sampling-filter-path miles.rollout.filter_hub.dynamic_sampling_filters.check_reward_nonzero_std
    --custom-config-path "${CONFIG_PATH}" --global-batch-size 256
 )
 EVAL_ARGS=(
-   --eval-function-path experiments.gsm8k_length_control.evaluation.MathEvalRolloutFn
+   --eval-function-path experiments.length_control.evaluation.MathEvalRolloutFn
    --eval-interval 5 --eval-prompt-data gsm8k /root/datasets/gsm8k/test.parquet --n-samples-per-eval-prompt 1 --eval-max-response-len 1024 --eval-top-k 1)
 PERF_ARGS=(--tensor-model-parallel-size 1 --sequence-parallel --pipeline-model-parallel-size 1 --context-parallel-size 1 --expert-model-parallel-size 1 --expert-tensor-parallel-size 1 --qkv-format thd --use-dynamic-batch-size --max-tokens-per-gpu 4096 --no-offload-train)
 GRPO_ARGS=(--advantage-estimator grpo --kl-loss-coef 0.00 --kl-loss-type low_var_kl --kl-coef 0.00 --observe-training-entropy --entropy-coef 0.00 --eps-clip 0.2 --eps-clip-high 0.28 --disable-grpo-std-normalization)

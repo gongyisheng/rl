@@ -5,28 +5,29 @@
 Use the [GSM8K setup](../../tasks/gsm8k/README.md), then run from the repository root inside the configured container:
 
 ```bash
-bash experiments/gsm8k_length_control/run.sh
+bash experiments/length_control/run.sh
 ```
 
-The runner completes v1 and then v2, sweeping `alpha=1e-3`, `1e-2`, and `1e-1` for each reward (six sequential runs). Before each run, its script stops SGLang and Ray, waits five seconds, then force-stops remaining SGLang, Ray, and Python processes. The broad Python termination assumes a dedicated training environment. Each script also runs independently, for example:
+The runner completes the standard DAPO baseline, then v1 and v2, sweeping `alpha=1e-3`, `1e-2`, and `1e-1` for each reward (seven sequential runs). Before each run, its script stops SGLang and Ray, waits five seconds, then force-stops remaining SGLang, Ray, and Python processes. The broad Python termination assumes a dedicated training environment. Each script also runs independently, for example:
 
 ```bash
-bash experiments/gsm8k_length_control/qwen25_3b_dapo_gsm8k_v1_lora_alpha_1e-3.sh
-bash experiments/gsm8k_length_control/qwen25_3b_dapo_gsm8k_v2_lora_alpha_1e-3.sh
+bash experiments/length_control/qwen25_3b_dapo_gsm8k_lora.sh
+bash experiments/length_control/qwen25_3b_dapo_gsm8k_v1_lora_alpha_1e-3.sh
+bash experiments/length_control/qwen25_3b_dapo_gsm8k_v2_lora_alpha_1e-3.sh
 ```
 
 Each run uses Qwen2.5-3B on one GPU, LoRA rank 32 with LoRA alpha 32, learning rate `1e-5`, and 100 rollout steps. A rollout contains 32 prompts with 8 responses each (global batch size 256). Training and evaluation responses are capped at 1,024 tokens. Evaluation and checkpoint saving run every 5 steps, with one evaluation response per prompt.
 
-GRPO standard-deviation normalization is disabled in all six runs so the length-penalty coefficient controls the strength of the reward differences. Mean subtraction remains enabled. Evaluation reports math correctness.
+The DAPO baseline uses the built-in math reward and standard GRPO standard-deviation normalization. The six length-control runs disable that normalization so the length-penalty coefficient controls the strength of reward differences; mean subtraction remains enabled. Evaluation reports math correctness.
 
-Each script loads its matching `reward_<version>_alpha_<alpha>.yaml` config. V1 uses `max_length=1024`; v2 uses relative lengths among correct responses to the same prompt. The reward alpha is separate from LoRA alpha.
+Each length-control variant loads its matching `reward_<version>_alpha_<alpha>.yaml` config. V1 uses `max_length=1024`; v2 uses relative lengths among correct responses to the same prompt. The baseline needs no custom config. The reward alpha is separate from LoRA alpha.
 
 - W&B project: `rl-gsm8k-length-control`.
-- W&B groups: `qwen25_3b_dapo_gsm8k_<version>_lora_alpha_<alpha>`, with the random suffix disabled.
-- Checkpoints: `/data/lora/gsm8k_length_control/<version>_alpha_<alpha>/`. Set `OUTPUT_DIR` to override the base directory.
+- W&B groups: `qwen25_3b_dapo_gsm8k_lora` for the baseline and `qwen25_3b_dapo_gsm8k_<version>_lora_alpha_<alpha>` for variants, with the random suffix disabled.
+- Checkpoints: `/data/lora/length_control/dapo/` for the baseline and `/data/lora/length_control/<version>_alpha_<alpha>/` for variants. Set `OUTPUT_DIR` to override the base directory.
 - Miles checkout: `/root/miles`. Set `MILES_ROOT` to override it; set `CUDA_VISIBLE_DEVICES` to select the GPU.
 
-Every training rollout is saved under `/data/rollouts/gsm8k_length_control/qwen25_3b_dapo_gsm8k_<version>_lora_alpha_<alpha>/<UTC-timestamp>/rollout_{rollout_id}.pt`; evaluation samples use `rollout_eval_<id>.pt` in the same directory. This is independent of checkpoint saving.
+Every training rollout is saved under `/data/rollouts/length_control/qwen25_3b_dapo_gsm8k_lora/<UTC-timestamp>/rollout_{rollout_id}.pt` for the baseline and `/data/rollouts/length_control/qwen25_3b_dapo_gsm8k_<version>_lora_alpha_<alpha>/<UTC-timestamp>/rollout_{rollout_id}.pt` for variants; evaluation samples use `rollout_eval_<id>.pt` in the same directory. This is independent of checkpoint saving.
 
 The scripts resolve the repository and config paths relative to their own location and pass the repository through Ray's `--working-dir` option. The runtime environment uses a literal JSON block with `PYTHONPATH=/root/Megatron-LM`.
 
@@ -48,7 +49,7 @@ V2 follows [Training Language Models to Reason Efficiently](https://arxiv.org/ht
 Run from the repository root. Each call supplies one prompt's responses in matching order:
 
 ```python
-from experiments.gsm8k_length_control.rewards import reward_v1, reward_v2
+from experiments.length_control.rewards import reward_v1, reward_v2
 
 correctness = [1, 0, 1]
 response_lengths = [256, 128, 512]
@@ -59,17 +60,19 @@ print(reward_v2(correctness, response_lengths))  # approximately [0.9462, 0.0, 0
 
 ## Miles integration
 
-Training uses a custom group reward and Miles' standard dynamic-sampling filter:
+The length-control variants use a custom group reward and Miles' standard dynamic-sampling filter:
 
 ```bash
 --rm-type math \
---custom-rm-path experiments.gsm8k_length_control.rewards.v1 \
+--custom-rm-path experiments.length_control.rewards.v1 \
 --group-rm \
 --dynamic-sampling-filter-path miles.rollout.filter_hub.dynamic_sampling_filters.check_reward_nonzero_std \
---eval-function-path experiments.gsm8k_length_control.evaluation.MathEvalRolloutFn
+--eval-function-path experiments.length_control.evaluation.MathEvalRolloutFn
 ```
 
-For v2, set `--custom-rm-path` to `experiments.gsm8k_length_control.rewards.v2`.
+For v2, set `--custom-rm-path` to `experiments.length_control.rewards.v2`.
+
+The baseline uses the built-in `--rm-type math` reward and standard evaluation, without a custom reward, group reward, config, or evaluation adapter.
 
 Each async reward function receives one completed prompt group, grades responses using the same `grade_answer_verl` checker as `--rm-type math`, and returns one length-shaped reward per response. Miles assigns these values to `sample.reward` before the standard filter retains groups with reward standard deviation greater than `1e-8`. All-correct groups can therefore contribute when their shaped rewards differ. Correctness is also stored in `sample.metadata["length_control_accuracy"]`.
 
@@ -91,5 +94,5 @@ The hooks leave advantage normalization to Miles. For a penalty-strength compari
 The tests run with the Python standard library and mock Miles dependencies. Actual training and evaluation require the configured Miles environment:
 
 ```bash
-python3 -m unittest discover -s experiments/gsm8k_length_control -v
+python3 -m unittest discover -s experiments/length_control -v
 ```
