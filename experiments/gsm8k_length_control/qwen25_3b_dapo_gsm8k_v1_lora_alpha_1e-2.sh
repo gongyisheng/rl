@@ -18,6 +18,8 @@ pkill -9 python
 
 set -ex
 
+rollout_run_dir="/data/rollouts/gsm8k_length_control/qwen25_3b_dapo_gsm8k_v1_lora_alpha_1e-2/$(date -u +%Y%m%dT%H%M%S%N)"
+
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 MILES_ROOT="${MILES_ROOT:-/root/miles}"
@@ -43,6 +45,7 @@ LORA_ARGS=(
 )
 
 ROLLOUT_ARGS=(
+   --save-debug-rollout-data "${rollout_run_dir}/rollout_{rollout_id}.pt"
    --prompt-data /root/datasets/gsm8k/train.parquet
    --input-key messages
    --label-key label

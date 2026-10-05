@@ -95,7 +95,7 @@ WANDB_ARGS=(
    --use-wandb
    --wandb-host https://wandb.ai/
    --wandb-project rl-gsm8k
-   --wandb-group qwen2.5-3B-dapo-gsm8k-full
+   --wandb-group qwen2.5-3B-dapo-gsm8k
 )
 
 SGLANG_ARGS=(

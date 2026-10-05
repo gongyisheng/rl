@@ -48,7 +48,7 @@ LORA_ARGS=(
 )
 
 ROLLOUT_ARGS=(
-   --save-debug-rollout-data "${rollout_run_dir}/samples/rollout_{rollout_id}.pt"
+   --save-debug-rollout-data "${rollout_run_dir}/rollout_{rollout_id}.pt"
    --prompt-data /root/datasets/gsm8k/train.parquet
    --input-key messages
    --label-key label

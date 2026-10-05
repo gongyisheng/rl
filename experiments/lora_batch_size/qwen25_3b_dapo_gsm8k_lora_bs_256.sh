@@ -18,6 +18,8 @@ pkill -9 python
 
 set -ex
 
+rollout_run_dir="/data/rollouts/lora_batch_size/qwen25_3b_dapo_gsm8k_lora_bs_256/$(date -u +%Y%m%dT%H%M%S%N)"
+
 batch_size=256
 rollout_batch_size=$((batch_size / 8))
 learning_rate=1e-5
@@ -45,6 +47,7 @@ LORA_ARGS=(
 )
 
 ROLLOUT_ARGS=(
+   --save-debug-rollout-data "${rollout_run_dir}/rollout_{rollout_id}.pt"
    --prompt-data /root/datasets/gsm8k/train.parquet
    --input-key messages
    --label-key label

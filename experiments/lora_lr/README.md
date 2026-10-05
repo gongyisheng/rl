@@ -28,4 +28,6 @@ bash experiments/lora_lr/qwen25_3b_dapo_gsm8k_lr_1e-5.sh
 
 Each run writes checkpoints to `/data/lora/lora_lr/lr_<learning-rate>/`.
 
+Every training rollout is saved under `/data/rollouts/lora_lr/qwen25_3b_dapo_gsm8k_lr_<learning-rate>/<UTC-timestamp>/rollout_{rollout_id}.pt`; evaluation samples use `rollout_eval_<id>.pt` in the same directory. This is independent of checkpoint saving.
+
 Runs are logged to the W&B project `rl-lora-lr` with names `qwen2.5-3B-dapo-gsm8k-lr-<learning-rate>`. Miles uses the W&B group as the run name, with its random suffix disabled for this sweep.

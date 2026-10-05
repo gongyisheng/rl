@@ -19,6 +19,6 @@ There is no `--calculate-per-token-loss`: GRPO divides each token sum by its val
 
 `MILES_ROOT` defaults to `/root/miles` and can be overridden. Ray workers receive `PYTHONPATH=${MILES_ROOT}:/root/Megatron-LM`, making the upstream `examples.experimental.DrGRPO` module importable from any launch directory. Checkpoints are saved under `${OUTPUT_DIR:-/data/drgrpo}/grpo/checkpoints` and `${OUTPUT_DIR:-/data/drgrpo}/drgrpo/checkpoints`. W&B uses project `rl-drgrpo`; the groups/run names are `qwen25_3b_grpo_gsm8k_lora` and `qwen25_3b_drgrpo_gsm8k_lora`.
 
-Every training rollout is saved under `/data/rollouts/drgrpo/qwen25_3b_<grpo-or-drgrpo>_gsm8k_lora/<UTC-timestamp>/samples/rollout_{rollout_id}.pt`; evaluation samples use `rollout_eval_<id>.pt` in the same directory. This is independent of checkpoint saving.
+Every training rollout is saved under `/data/rollouts/drgrpo/qwen25_3b_<grpo-or-drgrpo>_gsm8k_lora/<UTC-timestamp>/rollout_{rollout_id}.pt`; evaluation samples use `rollout_eval_<id>.pt` in the same directory. This is independent of checkpoint saving.
 
 Compare `eval/gsm8k` against `eval/step`: the optimizer, model, data, response budget, sampling setup, and seeds match, while DrGRPO changes only reward standard-deviation normalization and the fixed-divisor policy-gradient reducer.

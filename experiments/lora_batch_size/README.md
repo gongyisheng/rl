@@ -26,4 +26,6 @@ Each rollout collects eight responses per accepted prompt, giving exactly one op
 
 Checkpoints go to `/data/lora_batch_size/batch_size_<batch>/checkpoints`; `OUTPUT_DIR` overrides `/data/lora_batch_size`. W&B uses project `rl-lora-batch-size` and groups/run names `qwen25_3b_dapo_gsm8k_lora_bs_<batch>_lr_<lr>`, without random suffixes.
 
+Every training rollout is saved under `/data/rollouts/lora_batch_size/qwen25_3b_dapo_gsm8k_lora_bs_<batch>/<UTC-timestamp>/rollout_{rollout_id}.pt`; evaluation samples use `rollout_eval_<id>.pt` in the same directory. This is independent of checkpoint saving.
+
 Compare W&B `eval/gsm8k` against `eval/step`. For sample efficiency, compare against completed updates times global batch size. The runs use equal update counts but different accepted-response budgets: 256,000 through 4,096,000. This sweep changes batch size and learning rate together.

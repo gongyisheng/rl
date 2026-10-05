@@ -26,6 +26,8 @@ Each script loads its matching `reward_<version>_alpha_<alpha>.yaml` config. V1 
 - Checkpoints: `/data/lora/gsm8k_length_control/<version>_alpha_<alpha>/`. Set `OUTPUT_DIR` to override the base directory.
 - Miles checkout: `/root/miles`. Set `MILES_ROOT` to override it; set `CUDA_VISIBLE_DEVICES` to select the GPU.
 
+Every training rollout is saved under `/data/rollouts/gsm8k_length_control/qwen25_3b_dapo_gsm8k_<version>_lora_alpha_<alpha>/<UTC-timestamp>/rollout_{rollout_id}.pt`; evaluation samples use `rollout_eval_<id>.pt` in the same directory. This is independent of checkpoint saving.
+
 The scripts resolve the repository and config paths relative to their own location and pass the repository through Ray's `--working-dir` option. The runtime environment uses a literal JSON block with `PYTHONPATH=/root/Megatron-LM`.
 
 ## Reward functions
