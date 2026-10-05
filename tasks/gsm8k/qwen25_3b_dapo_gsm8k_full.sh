@@ -24,7 +24,7 @@ read -ra MODEL_ARGS <<< "${MODEL_ARGS_LINE}"
 
 CKPT_ARGS=(
    --hf-checkpoint /root/models/Qwen2.5-3B/
-   # --ref-load /root/models/Qwen2.5-3B-Instruct/
+   # --ref-load /root/models/Qwen2.5-3B/
    --megatron-to-hf-mode bridge
    --save /data/full/qwen25_gsm8k/
    --save-interval 5
