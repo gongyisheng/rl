@@ -32,11 +32,11 @@ hf download Qwen/Qwen2.5-3B --local-dir /root/models/Qwen2.5-3B
 LoRA fine-tuning:
 
 ```bash
-bash tasks/gsm8k/qwen25_3b_gsm8k_lora.sh
+bash tasks/gsm8k/qwen25_3b_dapo_gsm8k_lora.sh
 ```
 
-Full fine-tuning:
+Full fine-tuning (checkpoint saving disabled):
 
 ```bash
-bash tasks/gsm8k/qwen25_3b_gsm8k_full.sh
+bash tasks/gsm8k/qwen25_3b_dapo_gsm8k_full.sh
 ```

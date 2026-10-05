@@ -26,8 +26,6 @@ CKPT_ARGS=(
    --hf-checkpoint /root/models/Qwen2.5-3B/
    # --ref-load /root/models/Qwen2.5-3B/
    --megatron-to-hf-mode bridge
-   --save /data/gsm8k_steps/qwen25_3b_dapo_gsm8k_full/checkpoints
-   --save-interval 5
 )
 
 ROLLOUT_ARGS=(

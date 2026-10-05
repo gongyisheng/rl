@@ -13,4 +13,4 @@ bash experiments/gsm8k_steps/qwen25_3b_dapo_gsm8k_lora.sh
 bash experiments/gsm8k_steps/qwen25_3b_dapo_gsm8k_full.sh
 ```
 
-Both runs train for 1,000 steps, evaluate every 5 steps with 1 sample per prompt, and log to W&B project `rl-gsm8k-steps`. The LoRA run uses learning rate `1e-5`; the full-finetune run uses `1e-6`. They use their respective groups and checkpoint directories: `/data/gsm8k_steps/qwen25_3b_dapo_gsm8k_lora/checkpoints` and `/data/gsm8k_steps/qwen25_3b_dapo_gsm8k_full/checkpoints`.
+Both runs train for 1,000 steps, evaluate every 5 steps with 1 sample per prompt, and log to W&B project `rl-gsm8k-steps` with separate groups. The LoRA run uses learning rate `1e-5` and saves checkpoints to `/data/gsm8k_steps/qwen25_3b_dapo_gsm8k_lora/checkpoints`. The full-finetune run uses `1e-6` with checkpoint saving disabled.
