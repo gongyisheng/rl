@@ -4,6 +4,6 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-for mode in lora full; do
-    bash "${script_dir}/qwen25_3b_dapo_gsm8k_${mode}.sh"
+for suffix in _lora ""; do
+    bash "${script_dir}/qwen25_3b_dapo_gsm8k${suffix}.sh"
 done

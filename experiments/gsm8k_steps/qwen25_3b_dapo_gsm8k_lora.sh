@@ -17,6 +17,8 @@ pkill -9 python
 
 set -ex
 
+rollout_run_dir="/data/rollouts/gsm8k_steps/qwen25_3b_dapo_gsm8k_lora/$(date -u +%Y%m%dT%H%M%S%N)"
+
 
 MILES_ROOT=/root/miles
 MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_utils.py" "qwen2.5-3B")" || exit 1
