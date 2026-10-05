@@ -11,3 +11,20 @@
 - Do not save checkpoints for full-parameter RL runs; omit checkpoint-saving arguments and checkpoint output-directory setup.
 - Use distinct W&B groups for each variant and distinct checkpoint directories when checkpoint saving is enabled.
 - Keep each task or experiment's `README.md` launch commands and configuration summary in sync with its scripts.
+- In every training script, put the rerun cleanup block immediately after the environment exports and enable `set -ex` immediately afterward:
+
+  ```bash
+  # for rerun the task
+  pkill sglang
+  ray stop --force
+  sleep 5 # Wait for processes to terminate gracefully
+  # Force kill any remaining processes.
+  # Note: `pkill -9 python` is broad and can be risky.
+  pkill -9 sglang
+  pkill -9 ray
+  pkill -9 python
+
+  set -ex
+  ```
+
+  Do not enable `-e` until after cleanup because a missing process is expected. Each sequential `run.sh` child performs this cleanup before it begins; `pkill -9 python` assumes a dedicated training environment.

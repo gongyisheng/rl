@@ -1,16 +1,26 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-batch_size=2048
-rollout_batch_size=$((batch_size / 8))
-learning_rate=2.828427125e-6
+set -uo pipefail
 
 export FLASHINFER_DISABLE_VERSION_CHECK=1
 export GPUS_PER_NODE=1
 export PYTHONUNBUFFERED=1
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
 
-ray stop --force || true
+# for rerun the task
+pkill sglang
+ray stop --force
+sleep 5 # Wait for processes to terminate gracefully
+# Force kill any remaining processes.
+# Note: `pkill -9 python` is broad and can be risky.
+pkill -9 sglang
+pkill -9 ray
+pkill -9 python
+
+set -ex
+
+batch_size=2048
+rollout_batch_size=$((batch_size / 8))
+learning_rate=2.828427125e-6
 
 MILES_ROOT=/root/miles
 MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_utils.py" "qwen2.5-3B")" || exit 1

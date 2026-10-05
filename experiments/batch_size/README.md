@@ -6,7 +6,7 @@ Five Qwen2.5-3B DAPO full fine-tuning runs, based on the [1,000-step configurati
 bash experiments/batch_size/run.sh
 ```
 
-Runs execute sequentially in ascending batch size and stop on failure. Each script also runs independently:
+Runs execute sequentially in ascending batch size and stop on failure. Before each run, its script stops SGLang and Ray, waits five seconds, then force-stops remaining SGLang, Ray, and Python processes. The broad Python termination assumes a dedicated training environment. Each script also runs independently:
 
 ```bash
 bash experiments/batch_size/qwen25_3b_dapo_gsm8k_bs_1024.sh
