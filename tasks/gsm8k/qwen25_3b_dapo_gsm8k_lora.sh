@@ -17,6 +17,7 @@ pkill -9 python
 
 set -ex
 
+rollout_run_dir="/data/rollouts/gsm8k/qwen25_3b_dapo_gsm8k_lora/$(date -u +%Y%m%dT%H%M%S%N)"
 
 MILES_ROOT=/root/miles
 MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_utils.py" "qwen2.5-3B")" || exit 1
@@ -39,13 +40,15 @@ LORA_ARGS=(
 )
 
 ROLLOUT_ARGS=(
+   --save-debug-rollout-data "${rollout_run_dir}/rollout_{rollout_id}.pt"
    --prompt-data /root/datasets/gsm8k/train.parquet
    --input-key messages
    --label-key label
    --apply-chat-template
    --rollout-shuffle
+   --rollout-seed 42
    --rm-type math
-   --num-rollout 100
+   --num-rollout 250
    --rollout-batch-size 32
    --n-samples-per-prompt 8
    --rollout-max-response-len 1024

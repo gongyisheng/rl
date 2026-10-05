@@ -51,6 +51,7 @@ ROLLOUT_ARGS=(
    --label-key label
    --apply-chat-template
    --rollout-shuffle
+   --rollout-seed 42
    --rm-type math
    --num-rollout 100
    --rollout-batch-size 32

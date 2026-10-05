@@ -22,7 +22,7 @@ Learning rates use square-root scaling: `lr = 1e-6 * sqrt(global_batch_size / 25
 | 2048 | 256 | 2.828427125e-6 |
 | 4096 | 512 | 4e-6 |
 
-Each rollout collects eight responses per accepted prompt, giving exactly one optimizer update per rollout. Dynamic reward filtering can require extra generated responses. All runs use 1,000 updates, evaluate every 5 updates, and use one response per evaluation prompt. Dynamic microbatching keeps the 4,096-token GPU limit.
+Each rollout collects eight responses per accepted prompt, giving exactly one optimizer update per rollout. Dynamic reward filtering can require extra generated responses. All runs use 1,000 updates, evaluate every 5 updates, and use one response per evaluation prompt. All runs use rollout seed `42`. Dynamic microbatching keeps the 4,096-token GPU limit.
 
 Checkpoint saving is disabled. W&B uses project `rl-batch-size` and groups/run names `qwen25_3b_dapo_gsm8k_bs_<batch>_lr_<lr>`, without random suffixes.
 

@@ -20,7 +20,7 @@ wandb login
 bash experiments/lora_lr/run.sh
 ```
 
-The sweep runs seven 250-step scripts sequentially, evaluating every 5 steps with 1 sample per evaluation prompt. Each script can also run independently, for example:
+The sweep runs seven 250-step scripts sequentially, evaluating every 5 steps with 1 sample per evaluation prompt. All runs use rollout seed `42`. Each script can also run independently, for example:
 
 ```bash
 bash experiments/lora_lr/qwen25_3b_dapo_gsm8k_lr_1e-5.sh

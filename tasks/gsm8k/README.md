@@ -23,6 +23,8 @@ wandb login
 
 ## Configurations
 
+All configurations use rollout seed `42`.
+
 ### Qwen2.5 3B
 
 ```bash
@@ -38,5 +40,7 @@ bash tasks/gsm8k/qwen25_3b_dapo_gsm8k_lora.sh
 Full fine-tuning (checkpoint saving disabled):
 
 ```bash
-bash tasks/gsm8k/qwen25_3b_dapo_gsm8k_full.sh
+bash tasks/gsm8k/qwen25_3b_dapo_gsm8k.sh
 ```
+
+Every training rollout is saved under `/data/rollouts/gsm8k/<script-name>/<UTC-timestamp>/rollout_{rollout_id}.pt`, where `<script-name>` excludes `.sh`. This is independent of checkpoint saving.

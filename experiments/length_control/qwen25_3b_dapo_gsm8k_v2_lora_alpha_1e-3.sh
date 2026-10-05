@@ -35,6 +35,7 @@ ROLLOUT_ARGS=(
    --save-debug-rollout-data "${rollout_run_dir}/rollout_{rollout_id}.pt"
    --prompt-data /root/datasets/gsm8k/train.parquet --input-key messages --label-key label
    --apply-chat-template --rollout-shuffle --rm-type math --num-rollout 100
+   --rollout-seed 42
    --rollout-batch-size 32 --n-samples-per-prompt 8 --rollout-max-response-len 1024
    --rollout-temperature 1 --over-sampling-batch-size 32
    --custom-rm-path experiments.length_control.rewards.v2
