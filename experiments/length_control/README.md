@@ -16,7 +16,7 @@ bash experiments/length_control/qwen25_3b_dapo_gsm8k_v1_lora_alpha_1e-3.sh
 bash experiments/length_control/qwen25_3b_dapo_gsm8k_v2_lora_alpha_1e-3.sh
 ```
 
-Each run uses Qwen2.5-3B on one GPU, LoRA rank 32 with LoRA alpha 32, learning rate `1e-5`, 100 rollout steps, and rollout seed `42`. A rollout contains 32 prompts with 8 responses each (global batch size 256). Training and evaluation responses are capped at 1,024 tokens. Evaluation and checkpoint saving run every 5 steps, with one evaluation response per prompt. These runs do not enable the Miles router.
+Each run uses Qwen2.5-3B on one GPU, LoRA rank 32 with LoRA alpha 32, learning rate `1e-5`, 250 rollout steps, and rollout seed `42`. A rollout contains 32 prompts with 8 responses each (global batch size 256). Training and evaluation responses are capped at 1,024 tokens. Evaluation and checkpoint saving run every 5 steps, with one evaluation response per prompt. These runs do not enable the Miles router.
 
 The DAPO baseline uses the built-in math reward. The baseline and all six length-control runs disable GRPO standard-deviation normalization; mean subtraction remains enabled. This preserves the length-penalty coefficient's effect on reward differences. Evaluation reports math correctness.
 

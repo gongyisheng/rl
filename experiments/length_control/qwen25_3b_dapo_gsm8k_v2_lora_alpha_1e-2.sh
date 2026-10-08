@@ -52,7 +52,7 @@ ROLLOUT_ARGS=(
    --apply-chat-template
    --rollout-shuffle
    --rm-type math
-   --num-rollout 100
+   --num-rollout 250
    --rollout-seed 42
    --rollout-batch-size 32
    --n-samples-per-prompt 8
