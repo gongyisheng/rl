@@ -36,7 +36,7 @@ def reward_v1(
         raise ValueError("max_length must be finite and greater than zero")
 
     return [
-        1.0 - alpha * min(length / max_length, 1.0) if is_correct else 0.0
+        1.0 - alpha * min(length / max_length, 1.0) if is_correct else 0
         for is_correct, length in zip(correctness, response_lengths)
     ]
 
@@ -52,7 +52,7 @@ def reward_v2(
         length for is_correct, length in zip(correctness, response_lengths) if is_correct
     ]
     if not correct_lengths:
-        return [0.0] * len(correctness)
+        return [0] * len(correctness)
 
     mean_length = statistics.mean(correct_lengths)
     standard_deviation = statistics.pstdev(correct_lengths)
@@ -60,7 +60,7 @@ def reward_v2(
     rewards = []
     for is_correct, length in zip(correctness, response_lengths):
         if not is_correct:
-            rewards.append(0.0)
+            rewards.append(0)
             continue
 
         standardized_length = (length - mean_length) / denominator

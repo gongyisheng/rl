@@ -18,7 +18,7 @@ bash experiments/length_control/qwen25_3b_dapo_gsm8k_v2_lora_alpha_1e-3.sh
 
 Each run uses Qwen2.5-3B on one GPU, LoRA rank 32 with LoRA alpha 32, learning rate `1e-5`, 100 rollout steps, and rollout seed `42`. A rollout contains 32 prompts with 8 responses each (global batch size 256). Training and evaluation responses are capped at 1,024 tokens. Evaluation and checkpoint saving run every 5 steps, with one evaluation response per prompt. These runs do not enable the Miles router.
 
-The DAPO baseline uses the built-in math reward and standard GRPO standard-deviation normalization. The six length-control runs disable that normalization so the length-penalty coefficient controls the strength of reward differences; mean subtraction remains enabled. Evaluation reports math correctness.
+The DAPO baseline uses the built-in math reward. The baseline and all six length-control runs disable GRPO standard-deviation normalization; mean subtraction remains enabled. This preserves the length-penalty coefficient's effect on reward differences. Evaluation reports math correctness.
 
 Each length-control variant loads its matching `reward_<version>_alpha_<alpha>.yaml` config. V1 uses `max_length=1024`; v2 uses relative lengths among correct responses to the same prompt. The baseline needs no custom config. The reward alpha is separate from LoRA alpha.
 
@@ -33,7 +33,7 @@ The scripts resolve the repository and config paths relative to their own locati
 
 ## Reward functions
 
-Both versions reward shorter correct solutions and assign zero to incorrect answers. They use generated response tokens, excluding the prompt, with `alpha=0.2` by default.
+Both versions reward shorter correct solutions and assign integer zero to incorrect answers, matching the baseline filter metric name. They use generated response tokens, excluding the prompt, with `alpha=0.2` by default.
 
 | Version | Reward for a correct response |
 | --- | --- |
@@ -87,7 +87,7 @@ length_penalty_alpha: 0.1
 length_penalty_max_length: 1024  # v1 only
 ```
 
-The hooks leave advantage normalization to Miles. For a penalty-strength comparison, add `--disable-grpo-std-normalization` to every variant and its `alpha=0` control, and leave `--normalize-advantages` off. With standard GRPO reward standardization, the penalty coefficient cancels in all-correct groups (apart from numerical stabilizers).
+Every compared run, including the baseline/control, disables GRPO standard-deviation normalization and leaves `--normalize-advantages` off. With standard GRPO reward standardization, the penalty coefficient cancels in all-correct groups (apart from numerical stabilizers).
 
 ## Tests
 
