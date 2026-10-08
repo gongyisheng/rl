@@ -22,7 +22,7 @@ The DAPO baseline uses the built-in math reward and standard GRPO standard-devia
 
 Each length-control variant loads its matching `reward_<version>_alpha_<alpha>.yaml` config. V1 uses `max_length=1024`; v2 uses relative lengths among correct responses to the same prompt. The baseline needs no custom config. The reward alpha is separate from LoRA alpha.
 
-- W&B project: `rl-gsm8k-length-control`.
+- W&B project: `rl-length-control`.
 - W&B groups: `qwen25_3b_dapo_gsm8k_lora` for the baseline and `qwen25_3b_dapo_gsm8k_<version>_lora_alpha_<alpha>` for variants, with the random suffix disabled.
 - Checkpoints: `/data/lora/length_control/dapo/` for the baseline and `/data/lora/length_control/<version>_alpha_<alpha>/` for variants. Set `OUTPUT_DIR` to override the base directory.
 - Miles checkout: `/root/miles`. Set `MILES_ROOT` to override it; set `CUDA_VISIBLE_DEVICES` to select the GPU.

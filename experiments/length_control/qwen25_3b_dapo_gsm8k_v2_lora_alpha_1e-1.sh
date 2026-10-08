@@ -112,7 +112,7 @@ OPTIMIZER_ARGS=(
 WANDB_ARGS=(
    --use-wandb
    --wandb-host https://wandb.ai/
-   --wandb-project rl-gsm8k-length-control
+   --wandb-project rl-length-control
    --wandb-group "qwen25_3b_dapo_gsm8k_v2_lora_alpha_1e-1"
    --disable-wandb-random-suffix
 )
