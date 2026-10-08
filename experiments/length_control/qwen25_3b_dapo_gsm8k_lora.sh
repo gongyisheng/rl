@@ -31,7 +31,7 @@ read -r -a MODEL_ARGS <<< "${MODEL_ARGS_LINE}"
 CKPT_ARGS=(
    --hf-checkpoint /root/models/Qwen2.5-3B/
    --megatron-to-hf-mode bridge
-   --save "${OUTPUT_DIR}/dapo"
+   --save "${OUTPUT_DIR}/baseline"
    --save-interval 5
 )
 
