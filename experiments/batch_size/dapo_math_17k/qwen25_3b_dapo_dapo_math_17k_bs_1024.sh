@@ -17,10 +17,11 @@ pkill -9 python
 
 set -ex
 
-rollout_run_dir="/data/rollouts/batch_size/qwen25_3b_dapo_dapo_math_17k_bs_1024/$(date -u +%Y%m%dT%H%M%S%N)"
 batch_size=1024
 rollout_batch_size=$((batch_size / 8))
 learning_rate=2e-6
+
+rollout_run_dir="/data/rollouts/batch_size/qwen25_3b_dapo_dapo_math_17k_bs_${batch_size}/$(date -u +%Y%m%dT%H%M%S%N)"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"

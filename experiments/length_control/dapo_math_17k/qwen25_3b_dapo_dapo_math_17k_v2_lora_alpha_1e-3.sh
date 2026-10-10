@@ -1,8 +1,6 @@
 #!/bin/bash
-set -uo pipefail
-
 export FLASHINFER_DISABLE_VERSION_CHECK=1
-export GPUS_PER_NODE="${GPUS_PER_NODE:-1}"
+export GPUS_PER_NODE=1
 export PYTHONUNBUFFERED=1
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 
@@ -18,21 +16,25 @@ pkill -9 python
 
 set -ex
 
-rollout_run_dir="/data/rollouts/length_control/qwen25_3b_dapo_dapo_math_17k_v2_lora_alpha_1e-3/$(date -u +%Y%m%dT%H%M%S%N)"
+version="v2"
+alpha="1e-3"
+run_name="qwen25_3b_dapo_dapo_math_17k_${version}_lora_alpha_${alpha}"
+rollout_run_dir="/data/rollouts/length_control/${run_name}/$(date -u +%Y%m%dT%H%M%S%N)"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
-MILES_ROOT="${MILES_ROOT:-/root/miles}"
-ckpt_base_dir="${OUTPUT_DIR:-/data/length_control}/dapo_math_17k"
-CONFIG_PATH="${SCRIPT_DIR}/../reward_alpha_1e-3.yaml"
+MILES_ROOT=/root/miles
+ckpt_base_dir="/data/length_control/dapo_math_17k"
+ckpt_run_dir="${ckpt_base_dir}/${version}_alpha_${alpha}"
+CONFIG_PATH="${SCRIPT_DIR}/../reward_alpha_${alpha}.yaml"
 
-MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_utils.py" "qwen2.5-3B")"
-read -r -a MODEL_ARGS <<< "${MODEL_ARGS_LINE}"
+MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_utils.py" "qwen2.5-3B")" || exit 1
+read -ra MODEL_ARGS <<< "${MODEL_ARGS_LINE}"
 
 CKPT_ARGS=(
    --hf-checkpoint /root/models/Qwen2.5-3B/
    --megatron-to-hf-mode bridge
-   --save "${ckpt_base_dir}/v2_alpha_1e-3"
+   --save "${ckpt_run_dir}"
    --save-interval 5
 )
 
@@ -52,15 +54,15 @@ ROLLOUT_ARGS=(
    --apply-chat-template
    --rollout-shuffle
    --balance-data
+   --rollout-seed 42
    --rm-type deepscaler
    --num-rollout 250
-   --rollout-seed 42
    --rollout-batch-size 32
    --n-samples-per-prompt 8
    --rollout-max-response-len 8192
    --rollout-temperature 1
    --over-sampling-batch-size 32
-   --custom-rm-path experiments.length_control.rewards.v2
+   --custom-rm-path "experiments.length_control.rewards.${version}"
    --group-rm
    --dynamic-sampling-filter-path miles.rollout.filter_hub.dynamic_sampling_filters.check_reward_nonzero_std
    --custom-config-path "${CONFIG_PATH}"
@@ -113,7 +115,7 @@ WANDB_ARGS=(
    --use-wandb
    --wandb-host https://wandb.ai/
    --wandb-project rl-length-control-dapo-math-17k
-   --wandb-group "qwen25_3b_dapo_dapo_math_17k_v2_lora_alpha_1e-3"
+   --wandb-group "${run_name}"
    --disable-wandb-random-suffix
 )
 
@@ -164,4 +166,5 @@ ray job submit --address="http://127.0.0.1:8265" \
    "${EVAL_ARGS[@]}" \
    "${SGLANG_ARGS[@]}" \
    "${MISC_ARGS[@]}" \
-   "${ROLLOUT_ARGS[@]}"
+   "${ROLLOUT_ARGS[@]}" \
+   "$@"

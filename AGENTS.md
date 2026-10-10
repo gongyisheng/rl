@@ -7,7 +7,7 @@
 
 - Before creating an experiment script, read the matching `tasks/<task>/` training script and `README.md`. Use the same model, algorithm, and full/LoRA mode as the canonical starting configuration; when the experiment changes one of these, use the closest relevant task baseline. Start from that task script, retaining its argument groups, launch layout, and unchanged settings rather than copying another experiment.
 - Change only experiment parameters, required dependent settings, and variant-specific names, output paths, and W&B identities. Define every swept value once and reuse it consistently.
-- Diff each new script against its task baseline and document every intentional configuration difference in the experiment `README.md`.
+- Diff each new script against its task baseline.
 - Validate every new or modified `.sh` script with `bash -n` without launching training.
 
 # Rules
@@ -17,7 +17,8 @@
 - Add a usage comment after each `run.sh` shebang, e.g. `# Usage: nohup bash experiments/lora_lr/run.sh > logs/lora_lr.log 2>&1 &`.
 - Do not save checkpoints for full-parameter RL runs; omit checkpoint-saving arguments and checkpoint output-directory setup.
 - Use distinct W&B groups for each variant and distinct checkpoint directories when checkpoint saving is enabled.
-- Keep each task or experiment's `README.md` launch commands and configuration summary in sync with its scripts. Each experiment `README.md` must cover its hypothesis, task-baseline script paths, a setup table of changed and swept values, launch commands, and results or notes when available.
+- Keep each task's `README.md` launch commands and configuration summary in sync with its scripts.
+- Keep each experiment's `README.md` simple: describe the idea to test and the task to test it on. Detailed baselines, setup tables, launch commands, and results or notes are optional.
 - In every training script, after the shebang use this order: environment exports, process cleanup, `set -ex`, argument and path setup, then launch:
 
   ```bash
@@ -40,6 +41,6 @@
   set -ex
   ```
 
-  After `set -ex`, define experiment parameters such as `learning_rate`; run variables and paths (including `rollout_run_dir`, `SCRIPT_DIR`, `REPO_ROOT`, and `MILES_ROOT` as needed); and `ckpt_base_dir` and `ckpt_run_dir` when checkpoint saving is enabled. Load `MODEL_ARGS_LINE` and `MODEL_ARGS`, and set up the remaining argument arrays. Keep all path resolution, parameter initialization, and directory creation in this section, including `mkdir -p "${ckpt_run_dir}" || exit 1` when checkpoint saving is enabled, using values appropriate to the script.
+  After `set -ex`, define experiment parameters such as `learning_rate`; run variables and paths (including `rollout_run_dir`, `SCRIPT_DIR`, `REPO_ROOT`, and `MILES_ROOT` as needed); and `ckpt_base_dir` and `ckpt_run_dir` when checkpoint saving is enabled. Load `MODEL_ARGS_LINE` and `MODEL_ARGS`, and set up the remaining argument arrays. Keep all path resolution and parameter initialization in this section. Hardcode `ckpt_base_dir` to the appropriate experiment path; no `OUTPUT_DIR` fallback is needed. Miles creates checkpoint directories, so omit checkpoint `mkdir` commands.
 
   Do not enable `-e` until after cleanup because a missing process is expected. Each sequential `run.sh` child performs this cleanup before it begins; `pkill -9 python` assumes a dedicated training environment.

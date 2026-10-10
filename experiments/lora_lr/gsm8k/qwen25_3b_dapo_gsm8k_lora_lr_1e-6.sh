@@ -1,11 +1,4 @@
-#!/usr/bin/env bash
-set -o pipefail
-
-ckpt_base_dir="${OUTPUT_DIR:-/data/lora_lr}/gsm8k"
-learning_rate="1e-6"
-ckpt_run_dir="${ckpt_base_dir}/lr_${learning_rate}"
-mkdir -p "${ckpt_run_dir}" || exit 1
-
+#!/bin/bash
 export FLASHINFER_DISABLE_VERSION_CHECK=1
 export GPUS_PER_NODE=1
 # will prevent ray from buffering stdout/stderr
@@ -24,7 +17,11 @@ pkill -9 python
 
 set -ex
 
-rollout_run_dir="/data/rollouts/lora_lr/qwen25_3b_dapo_gsm8k_lora_lr_1e-6/$(date -u +%Y%m%dT%H%M%S%N)"
+ckpt_base_dir="/data/lora_lr/gsm8k"
+learning_rate="1e-6"
+ckpt_run_dir="${ckpt_base_dir}/lr_${learning_rate}"
+
+rollout_run_dir="/data/rollouts/lora_lr/qwen25_3b_dapo_gsm8k_lora_lr_${learning_rate}/$(date -u +%Y%m%dT%H%M%S%N)"
 
 
 MILES_ROOT=/root/miles

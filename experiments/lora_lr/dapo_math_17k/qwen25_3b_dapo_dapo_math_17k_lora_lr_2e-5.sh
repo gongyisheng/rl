@@ -1,9 +1,4 @@
 #!/bin/bash
-ckpt_base_dir="${OUTPUT_DIR:-/data/lora_lr}/dapo_math_17k"
-learning_rate="2e-5"
-ckpt_run_dir="${ckpt_base_dir}/lr_${learning_rate}"
-mkdir -p "${ckpt_run_dir}" || exit 1
-
 export FLASHINFER_DISABLE_VERSION_CHECK=1
 export GPUS_PER_NODE=1
 # will prevent ray from buffering stdout/stderr
@@ -22,7 +17,11 @@ pkill -9 python
 
 set -ex
 
-rollout_run_dir="/data/rollouts/lora_lr/qwen25_3b_dapo_dapo_math_17k_lora_lr_2e-5/$(date -u +%Y%m%dT%H%M%S%N)"
+ckpt_base_dir="/data/lora_lr/dapo_math_17k"
+learning_rate="2e-5"
+ckpt_run_dir="${ckpt_base_dir}/lr_${learning_rate}"
+
+rollout_run_dir="/data/rollouts/lora_lr/qwen25_3b_dapo_dapo_math_17k_lora_lr_${learning_rate}/$(date -u +%Y%m%dT%H%M%S%N)"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
@@ -114,7 +113,7 @@ WANDB_ARGS=(
    --use-wandb
    --wandb-host https://wandb.ai/
    --wandb-project rl-lora-lr-dapo-math-17k
-   --wandb-group "qwen2.5-3B-dapo-dapo-math-17k-lora-lr-2e-5"
+   --wandb-group "qwen2.5-3B-dapo-dapo-math-17k-lora-lr-${learning_rate}"
    --disable-wandb-random-suffix
 )
 

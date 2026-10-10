@@ -1,6 +1,8 @@
 # GRPO vs. DrGRPO
 
-Compare full-parameter GRPO with DrGRPO to measure bias from response-length normalization and reward standard-deviation normalization.
+Compare Qwen2.5-3B full-parameter GRPO with DrGRPO to measure the effects of response-length and reward standard-deviation normalization.
+
+Both variants use symmetric clipping at `0.2` and omit DAPO dynamic sampling and per-token loss aggregation. DrGRPO additionally disables reward standard-deviation normalization and uses the Miles DrGRPO loss reducer.
 
 ## Tasks
 

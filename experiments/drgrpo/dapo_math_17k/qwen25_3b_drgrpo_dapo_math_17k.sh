@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-set -uo pipefail
-
 export FLASHINFER_DISABLE_VERSION_CHECK=1
 export GPUS_PER_NODE=1
 export PYTHONUNBUFFERED=1
@@ -18,7 +16,9 @@ pkill -9 python
 
 set -ex
 
-rollout_run_dir="/data/rollouts/drgrpo/qwen25_3b_drgrpo_dapo_math_17k/$(date -u +%Y%m%dT%H%M%S%N)"
+algorithm="drgrpo"
+run_name="qwen25_3b_${algorithm}_dapo_math_17k"
+rollout_run_dir="/data/rollouts/drgrpo/${run_name}/$(date -u +%Y%m%dT%H%M%S%N)"
 
 batch_size=256
 rollout_batch_size=32
@@ -108,7 +108,7 @@ WANDB_ARGS=(
    --use-wandb
    --wandb-host https://wandb.ai/
    --wandb-project rl-drgrpo-dapo-math-17k
-   --wandb-group qwen25_3b_drgrpo_dapo_math_17k
+   --wandb-group "${run_name}"
    --disable-wandb-random-suffix
 )
 
@@ -157,4 +157,5 @@ ray job submit --address="http://127.0.0.1:8265" \
    "${EVAL_ARGS[@]}" \
    "${SGLANG_ARGS[@]}" \
    "${MISC_ARGS[@]}" \
-   "${ROLLOUT_ARGS[@]}"
+   "${ROLLOUT_ARGS[@]}" \
+   "$@"

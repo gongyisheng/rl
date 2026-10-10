@@ -1,6 +1,6 @@
 # Full-RL batch-size sweeps
 
-Compare the effect of batch size on Qwen2.5-3B DAPO full-parameter training.
+Test how batch size, coupled with square-root learning-rate scaling, affects Qwen2.5-3B DAPO full-parameter training.
 
 ## Tasks
 

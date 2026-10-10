@@ -1,6 +1,6 @@
 # LoRA learning-rate sweeps
 
-Compare learning rates for Qwen2.5-3B DAPO LoRA training.
+Test how learning rate affects Qwen2.5-3B DAPO LoRA training quality and stability.
 
 ## Tasks
 

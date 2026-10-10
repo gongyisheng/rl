@@ -1,7 +1,4 @@
-#!/usr/bin/env bash
-set -o pipefail
-
-learning_rate="1e-5"
+#!/bin/bash
 export FLASHINFER_DISABLE_VERSION_CHECK=1
 export GPUS_PER_NODE=1
 # will prevent ray from buffering stdout/stderr
@@ -20,7 +17,9 @@ pkill -9 python
 
 set -ex
 
-rollout_run_dir="/data/rollouts/lr/qwen25_3b_dapo_dapo_math_17k_lr_1e-5/$(date -u +%Y%m%dT%H%M%S%N)"
+learning_rate="1e-5"
+
+rollout_run_dir="/data/rollouts/lr/qwen25_3b_dapo_dapo_math_17k_lr_${learning_rate}/$(date -u +%Y%m%dT%H%M%S%N)"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"

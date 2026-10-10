@@ -1,6 +1,4 @@
-#!/usr/bin/env bash
-set -uo pipefail
-
+#!/bin/bash
 export FLASHINFER_DISABLE_VERSION_CHECK=1
 export GPUS_PER_NODE=1
 export PYTHONUNBUFFERED=1
@@ -18,14 +16,13 @@ pkill -9 python
 
 set -ex
 
-rollout_run_dir="/data/rollouts/lora_batch_size/qwen25_3b_dapo_gsm8k_lora_bs_4096/$(date -u +%Y%m%dT%H%M%S%N)"
-
 batch_size=4096
 rollout_batch_size=$((batch_size / 8))
 learning_rate=4e-5
-ckpt_base_dir="${OUTPUT_DIR:-/data/lora_batch_size}/gsm8k"
+
+rollout_run_dir="/data/rollouts/lora_batch_size/qwen25_3b_dapo_gsm8k_lora_bs_${batch_size}/$(date -u +%Y%m%dT%H%M%S%N)"
+ckpt_base_dir="/data/lora_batch_size/gsm8k"
 ckpt_run_dir="${ckpt_base_dir}/batch_size_${batch_size}/checkpoints"
-mkdir -p "${ckpt_run_dir}"
 
 MILES_ROOT=/root/miles
 MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_utils.py" "qwen2.5-3B")" || exit 1
@@ -86,7 +83,6 @@ PERF_ARGS=(
    --use-dynamic-batch-size
    --max-tokens-per-gpu 4096
 
-   --no-offload-train
 )
 
 GRPO_ARGS=(

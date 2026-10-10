@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Usage: nohup bash experiments/lora_batch_size/gsm8k/run.sh > logs/lora_batch_size_gsm8k.log 2>&1 &
 set -euo pipefail
 

@@ -1,6 +1,4 @@
-#!/usr/bin/env bash
-set -uo pipefail
-
+#!/bin/bash
 export FLASHINFER_DISABLE_VERSION_CHECK=1
 export GPUS_PER_NODE=1
 export PYTHONUNBUFFERED=1
@@ -22,9 +20,8 @@ batch_size=2048
 rollout_batch_size=$((batch_size / 8))
 learning_rate=2.828e-5
 rollout_run_dir="/data/rollouts/lora_batch_size/qwen25_3b_dapo_dapo_math_17k_lora_bs_${batch_size}/$(date -u +%Y%m%dT%H%M%S%N)"
-ckpt_base_dir="${OUTPUT_DIR:-/data/lora_batch_size}/dapo_math_17k"
+ckpt_base_dir="/data/lora_batch_size/dapo_math_17k"
 ckpt_run_dir="${ckpt_base_dir}/batch_size_${batch_size}/checkpoints"
-mkdir -p "${ckpt_run_dir}"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
@@ -165,4 +162,5 @@ ray job submit --address="http://127.0.0.1:8265" \
    "${EVAL_ARGS[@]}" \
    "${SGLANG_ARGS[@]}" \
    "${MISC_ARGS[@]}" \
-   "${ROLLOUT_ARGS[@]}"
+   "${ROLLOUT_ARGS[@]}" \
+   "$@"

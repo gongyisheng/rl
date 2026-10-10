@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Usage: nohup bash experiments/lora_batch_size/dapo_math_17k/run.sh > logs/lora_batch_size_dapo_math_17k.log 2>&1 &
 set -euo pipefail
 
