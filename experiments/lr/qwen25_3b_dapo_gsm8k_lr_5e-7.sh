@@ -149,7 +149,6 @@ ray job submit --address="http://127.0.0.1:8265" \
    --actor-num-gpus-per-node $GPUS_PER_NODE \
    --colocate \
    --calculate-per-token-loss \
-   --use-miles-router \
    "${MODEL_ARGS[@]}" \
    "${CKPT_ARGS[@]}" \
    "${OPTIMIZER_ARGS[@]}" \
