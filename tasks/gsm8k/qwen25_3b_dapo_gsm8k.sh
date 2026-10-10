@@ -99,6 +99,7 @@ WANDB_ARGS=(
    --wandb-host https://wandb.ai/
    --wandb-project rl-gsm8k
    --wandb-group qwen2.5-3B-dapo-gsm8k
+   --disable-wandb-random-suffix
 )
 
 SGLANG_ARGS=(

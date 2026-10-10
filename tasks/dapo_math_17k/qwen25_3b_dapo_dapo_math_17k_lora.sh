@@ -110,6 +110,7 @@ WANDB_ARGS=(
    --wandb-host https://wandb.ai/
    --wandb-project rl-dapo-math-17k
    --wandb-group qwen2.5-3B-dapo-dapo-math-17k-lora
+   --disable-wandb-random-suffix
 )
 
 SGLANG_ARGS=(
