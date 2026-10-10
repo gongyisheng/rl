@@ -17,7 +17,7 @@ pkill -9 python
 
 set -ex
 
-rollout_run_dir="/data/rollouts/gsm8k/qwen25_3b_dapo_gsm8k_lora/$(date -u +%Y%m%dT%H%M%S%N)"
+rollout_run_dir="/data/rollouts/dapo_math_17k/qwen25_3b_dapo_dapo_math_17k/$(date -u +%Y%m%dT%H%M%S%N)"
 
 MILES_ROOT=/root/miles
 MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_utils.py" "qwen2.5-3B")" || exit 1
@@ -27,27 +27,18 @@ CKPT_ARGS=(
    --hf-checkpoint /root/models/Qwen2.5-3B/
    # --ref-load /root/models/Qwen2.5-3B/
    --megatron-to-hf-mode bridge
-   --save /data/lora/gsm8k/qwen25_3b_dapo_gsm8k_lora/
-   --save-interval 5
-)
-
-LORA_ARGS=(
-   --lora-rank 32                    # LoRA rank (typical values: 8, 16, 32, 64)
-   --lora-alpha 32                   # LoRA alpha (usually 2x rank)
-   --lora-dropout 0.0                # LoRA dropout (0.0 for RL training)
-   --target-modules "all-linear"
-   --megatron-to-hf-mode bridge
 )
 
 ROLLOUT_ARGS=(
    --save-debug-rollout-data "${rollout_run_dir}/rollout_{rollout_id}.pt"
-   --prompt-data /root/datasets/gsm8k/train.parquet
-   --input-key messages
+   --prompt-data /root/datasets/dapo-math-17k/dapo-math-17k.jsonl
+   --input-key prompt
    --label-key label
    --apply-chat-template
    --rollout-shuffle
+   --balance-data
    --rollout-seed 42
-   --rm-type math
+   --rm-type deepscaler
    --num-rollout 250
    --rollout-batch-size 32
    --n-samples-per-prompt 8
@@ -60,12 +51,10 @@ ROLLOUT_ARGS=(
 )
 
 EVAL_ARGS=(
-   # --skip-eval-before-train
    --eval-interval 5
-   --eval-prompt-data gsm8k /root/datasets/gsm8k/test.parquet
-   --n-samples-per-eval-prompt 1
-   --eval-max-response-len 1024
-   --eval-top-k 1
+   --eval-prompt-data aime-2024 /root/datasets/aime-2024.jsonl
+   --n-samples-per-eval-prompt 16
+   --eval-max-response-len 16384
 )
 
 PERF_ARGS=(
@@ -97,7 +86,7 @@ GRPO_ARGS=(
 
 OPTIMIZER_ARGS=(
    --optimizer adam
-   --lr 1e-5 # Higher LR often works better for LoRA
+   --lr 1e-5
    --lr-decay-style constant
    --weight-decay 0.1
    --adam-beta1 0.9
@@ -107,8 +96,8 @@ OPTIMIZER_ARGS=(
 WANDB_ARGS=(
    --use-wandb
    --wandb-host https://wandb.ai/
-   --wandb-project rl-gsm8k
-   --wandb-group qwen2.5-3B-dapo-lora
+   --wandb-project rl-dapo-math-17k
+   --wandb-group qwen2.5-3B-dapo-dapo-math-17k
 )
 
 SGLANG_ARGS=(
@@ -152,14 +141,13 @@ ray job submit --address="http://127.0.0.1:8265" \
    --actor-num-gpus-per-node $GPUS_PER_NODE \
    --colocate \
    --calculate-per-token-loss \
-   ${MODEL_ARGS[@]} \
-   ${CKPT_ARGS[@]} \
-   ${LORA_ARGS[@]} \
-   ${OPTIMIZER_ARGS[@]} \
-   ${GRPO_ARGS[@]} \
-   ${WANDB_ARGS[@]} \
-   ${PERF_ARGS[@]} \
-   ${EVAL_ARGS[@]} \
-   ${SGLANG_ARGS[@]} \
-   ${MISC_ARGS[@]} \
-   ${ROLLOUT_ARGS[@]}
+   "${MODEL_ARGS[@]}" \
+   "${CKPT_ARGS[@]}" \
+   "${OPTIMIZER_ARGS[@]}" \
+   "${GRPO_ARGS[@]}" \
+   "${WANDB_ARGS[@]}" \
+   "${PERF_ARGS[@]}" \
+   "${EVAL_ARGS[@]}" \
+   "${SGLANG_ARGS[@]}" \
+   "${MISC_ARGS[@]}" \
+   "${ROLLOUT_ARGS[@]}"
