@@ -70,9 +70,9 @@ PERF_ARGS=(
 
    --qkv-format thd
    --use-dynamic-batch-size
-   --max-tokens-per-gpu 4096
-   --log-probs-max-tokens-per-gpu 4096
-   # Full Adam state leaves less room for long-response activations than LoRA.
+   --max-tokens-per-gpu 8192
+   --log-probs-max-tokens-per-gpu 8192
+   # Activation Checkpointing
    --recompute-granularity full
    --recompute-method uniform
    --recompute-num-layers 1
@@ -111,8 +111,8 @@ WANDB_ARGS=(
 SGLANG_ARGS=(
    --rollout-num-gpus-per-engine 1
    --sglang-mem-fraction-static 0.4
-   --sglang-max-running-requests 128
-   --sglang-cuda-graph-max-bs-decode 128
+   --sglang-max-running-requests 256
+   --sglang-cuda-graph-max-bs-decode 256
    --sglang-chunked-prefill-size 2048
 )
 
