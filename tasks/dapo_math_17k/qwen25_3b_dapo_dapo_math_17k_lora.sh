@@ -115,8 +115,8 @@ WANDB_ARGS=(
 SGLANG_ARGS=(
    --rollout-num-gpus-per-engine 1
    --sglang-mem-fraction-static 0.7
-   --sglang-max-running-requests 128
-   --sglang-cuda-graph-max-bs-decode 128
+   --sglang-max-running-requests 256
+   --sglang-cuda-graph-max-bs-decode 256
    --sglang-chunked-prefill-size 2048
 )
 

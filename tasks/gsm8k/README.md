@@ -31,7 +31,7 @@ All configurations use rollout seed `42`.
 hf download Qwen/Qwen2.5-3B --local-dir /root/models/Qwen2.5-3B
 ```
 
-LoRA fine-tuning:
+LoRA fine-tuning (trainer offloaded to CPU during rollout generation):
 
 ```bash
 bash tasks/gsm8k/qwen25_3b_dapo_gsm8k_lora.sh

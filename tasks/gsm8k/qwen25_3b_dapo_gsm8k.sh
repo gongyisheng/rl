@@ -105,6 +105,8 @@ SGLANG_ARGS=(
    --rollout-num-gpus-per-engine 1
    # --sglang-mem-fraction-static 0.7
    --sglang-mem-fraction-static 0.4
+   --sglang-max-running-requests 256
+   --sglang-cuda-graph-max-bs-decode 256
 
    # --sglang-enable-deterministic-inference
    # --sglang-attention-backend flashinfer
