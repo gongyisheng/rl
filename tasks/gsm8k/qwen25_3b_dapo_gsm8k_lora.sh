@@ -2,7 +2,7 @@
 export FLASHINFER_DISABLE_VERSION_CHECK=1
 export GPUS_PER_NODE=1
 # will prevent ray from buffering stdout/stderr
-export PYTHONBUFFERED=1
+export PYTHONUNBUFFERED=1
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
 
 # for rerun the task
@@ -122,6 +122,7 @@ SGLANG_ARGS=(
 )
 
 MISC_ARGS=(
+   --seed 42
    # default dropout in megatron is 0.1
    --attention-dropout 0.0
    --hidden-dropout 0.0

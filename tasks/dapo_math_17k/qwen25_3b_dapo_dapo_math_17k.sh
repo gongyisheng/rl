@@ -94,7 +94,7 @@ GRPO_ARGS=(
 
 OPTIMIZER_ARGS=(
    --optimizer adam
-   --lr 1e-5
+   --lr 1e-6
    --lr-decay-style constant
    --weight-decay 0.1
    --adam-beta1 0.9
@@ -117,6 +117,7 @@ SGLANG_ARGS=(
 )
 
 MISC_ARGS=(
+   --seed 42
    # default dropout in megatron is 0.1
    --attention-dropout 0.0
    --hidden-dropout 0.0

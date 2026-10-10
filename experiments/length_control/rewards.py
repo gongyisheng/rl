@@ -1,4 +1,4 @@
-"""Length-aware reward functions for GSM8K rollouts."""
+"""Length-aware reward functions for math rollouts."""
 
 import math
 import statistics
@@ -75,18 +75,24 @@ def reward_v2(
 
 async def _apply_reward(args, samples, version) -> list[float]:
     if getattr(args, "reward_key", None):
-        raise ValueError("Length control expects scalar rewards from --rm-type math")
+        raise ValueError("Length control expects scalar rewards")
     if len({sample.group_index for sample in samples}) > 1:
         raise ValueError("Length rewards must be computed separately for each prompt group")
 
-    from miles.rollout.rm_hub.math_utils import grade_answer_verl
+    if getattr(args, "rm_type", None) == "deepscaler":
+        from tasks.dapo_math_17k.rewards import deepscaler
 
-    correctness = [int(grade_answer_verl(sample.response, sample.label)) for sample in samples]
+        correctness = [int(await deepscaler(args, sample)) for sample in samples]
+    else:
+        from miles.rollout.rm_hub.math_utils import grade_answer_verl
+
+        correctness = [
+            int(grade_answer_verl(sample.response, sample.label)) for sample in samples
+        ]
     response_lengths = [sample.response_length for sample in samples]
     alpha = getattr(args, "length_penalty_alpha", 0.2)
     if version == "v1":
-        max_length = getattr(args, "length_penalty_max_length", 1024)
-        rewards = reward_v1(correctness, response_lengths, alpha, max_length)
+        rewards = reward_v1(correctness, response_lengths, alpha, args.rollout_max_response_len)
     else:
         rewards = reward_v2(correctness, response_lengths, alpha)
 

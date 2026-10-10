@@ -1,6 +1,6 @@
 # GSM8K
 
-GSM8K training configurations. Set up a [configured container](../../README.md#environment), then run these commands from the repository root inside it.
+Train Qwen2.5-3B with DAPO to solve GSM8K math problems. Set up the [container](../../README.md#environment), then run these commands from the repository root inside it.
 
 ## Dataset
 
@@ -21,9 +21,7 @@ MAX_JOBS=4 CPATH="${TE_SITE_PACKAGES}/nvidia/cudnn/include:${TE_SITE_PACKAGES}/n
 wandb login
 ```
 
-## Configurations
-
-All configurations use rollout seed `42`.
+## Training
 
 ### Qwen2.5 3B
 
@@ -37,10 +35,8 @@ LoRA fine-tuning (trainer offloaded to CPU during rollout generation):
 bash tasks/gsm8k/qwen25_3b_dapo_gsm8k_lora.sh
 ```
 
-Full fine-tuning (checkpoint saving disabled):
+Full fine-tuning:
 
 ```bash
 bash tasks/gsm8k/qwen25_3b_dapo_gsm8k.sh
 ```
-
-Every training rollout is saved under `/data/rollouts/gsm8k/<script-name>/<UTC-timestamp>/rollout_{rollout_id}.pt`, where `<script-name>` excludes `.sh`. This is independent of checkpoint saving.

@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+export FLASHINFER_DISABLE_VERSION_CHECK=1
+export GPUS_PER_NODE=1
+export PYTHONUNBUFFERED=1
+export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+
+# for rerun the task
+pkill sglang
+ray stop --force
+sleep 5 # Wait for processes to terminate gracefully
+# Force kill any remaining processes.
+# Note: `pkill -9 python` is broad and can be risky.
+pkill -9 sglang
+pkill -9 ray
+pkill -9 python
+
+set -ex
+
+batch_size=1024
+rollout_batch_size=$((batch_size / 8))
+learning_rate=2e-5
+rollout_run_dir="/data/rollouts/lora_batch_size/qwen25_3b_dapo_dapo_math_17k_lora_bs_${batch_size}/$(date -u +%Y%m%dT%H%M%S%N)"
+ckpt_base_dir="${OUTPUT_DIR:-/data/lora_batch_size}/dapo_math_17k"
+ckpt_run_dir="${ckpt_base_dir}/batch_size_${batch_size}/checkpoints"
+mkdir -p "${ckpt_run_dir}"
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
+MILES_ROOT=/root/miles
+MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_utils.py" "qwen2.5-3B")" || exit 1
+read -ra MODEL_ARGS <<< "${MODEL_ARGS_LINE}"
+
+CKPT_ARGS=(
+   --hf-checkpoint /root/models/Qwen2.5-3B/
+   --megatron-to-hf-mode bridge
+   --save "${ckpt_run_dir}"
+   --save-interval 5
+)
+
+LORA_ARGS=(
+   --lora-rank 32
+   --lora-alpha 32
+   --lora-dropout 0.0
+   --target-modules "all-linear"
+   --megatron-to-hf-mode bridge
+)
+
+ROLLOUT_ARGS=(
+   --save-debug-rollout-data "${rollout_run_dir}/rollout_{rollout_id}.pt"
+   --prompt-data /root/datasets/dapo-math-17k/dapo-math-17k.jsonl
+   --input-key prompt
+   --label-key label
+   --apply-chat-template
+   --rollout-shuffle
+   --balance-data
+   --rollout-seed 42
+   --rm-type deepscaler
+   --custom-rm-path tasks.dapo_math_17k.rewards.deepscaler
+   --num-rollout 250
+   --rollout-batch-size "${rollout_batch_size}"
+   --n-samples-per-prompt 8
+   --rollout-max-response-len 8192
+   --rollout-temperature 1
+   --over-sampling-batch-size "${rollout_batch_size}"
+   --dynamic-sampling-filter-path miles.rollout.filter_hub.dynamic_sampling_filters.check_reward_nonzero_std
+
+   --global-batch-size "${batch_size}"
+)
+
+EVAL_ARGS=(
+   --eval-interval 5
+   --eval-prompt-data aime-2024 /root/datasets/aime-2024/aime-2024.jsonl
+   --n-samples-per-eval-prompt 16
+   --eval-max-response-len 16384
+)
+
+PERF_ARGS=(
+   --tensor-model-parallel-size 1
+   --sequence-parallel
+   --pipeline-model-parallel-size 1
+   --context-parallel-size 1
+   --expert-model-parallel-size 1
+   --expert-tensor-parallel-size 1
+
+   --qkv-format thd
+   --use-dynamic-batch-size
+   --max-tokens-per-gpu 8192
+   --log-probs-max-tokens-per-gpu 8192
+)
+
+GRPO_ARGS=(
+   --advantage-estimator grpo
+   --kl-loss-coef 0.00
+   --kl-loss-type low_var_kl
+   --kl-coef 0.00
+   --observe-training-entropy
+   --entropy-coef 0.00
+   --eps-clip 0.2
+   --eps-clip-high 0.28
+)
+
+OPTIMIZER_ARGS=(
+   --optimizer adam
+   --lr "${learning_rate}"
+   --lr-decay-style constant
+   --weight-decay 0.1
+   --adam-beta1 0.9
+   --adam-beta2 0.98
+)
+
+WANDB_ARGS=(
+   --use-wandb
+   --wandb-host https://wandb.ai/
+   --wandb-project rl-lora-batch-size-dapo-math-17k
+   --wandb-group "qwen25_3b_dapo_dapo_math_17k_lora_bs_${batch_size}_lr_${learning_rate}"
+   --disable-wandb-random-suffix
+)
+
+SGLANG_ARGS=(
+   --rollout-num-gpus-per-engine 1
+   --sglang-mem-fraction-static 0.7
+   --sglang-max-running-requests 256
+   --sglang-cuda-graph-max-bs-decode 256
+   --sglang-chunked-prefill-size 2048
+)
+
+MISC_ARGS=(
+   --seed 42
+   --attention-dropout 0.0
+   --hidden-dropout 0.0
+   --accumulate-allreduce-grads-in-fp32
+   --attention-softmax-in-fp32
+   --attention-backend flash
+)
+
+ray start --head --node-ip-address 127.0.0.1 --num-gpus "${GPUS_PER_NODE}" --disable-usage-stats
+
+ray job submit --address="http://127.0.0.1:8265" \
+   --working-dir "${REPO_ROOT}" \
+   --runtime-env-json='{
+     "env_vars": {
+        "PYTHONPATH": "/root/Megatron-LM",
+        "CUDA_DEVICE_MAX_CONNECTIONS": "1",
+        "NCCL_ALGO": "Ring",
+        "SGLANG_TIMEOUT_KEEP_ALIVE": "60",
+        "NVTE_FLASH_ATTN_V2": "1",
+        "NVTE_FLASH_ATTN_V3": "0",
+        "NVTE_FLASH_ATTN_V4": "0"
+     }
+   }' \
+   -- python3 /root/miles/train.py \
+   --actor-num-nodes 1 \
+   --actor-num-gpus-per-node "${GPUS_PER_NODE}" \
+   --colocate \
+   --calculate-per-token-loss \
+   "${MODEL_ARGS[@]}" \
+   "${CKPT_ARGS[@]}" \
+   "${LORA_ARGS[@]}" \
+   "${OPTIMIZER_ARGS[@]}" \
+   "${GRPO_ARGS[@]}" \
+   "${WANDB_ARGS[@]}" \
+   "${PERF_ARGS[@]}" \
+   "${EVAL_ARGS[@]}" \
+   "${SGLANG_ARGS[@]}" \
+   "${MISC_ARGS[@]}" \
+   "${ROLLOUT_ARGS[@]}"

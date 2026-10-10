@@ -1,6 +1,6 @@
 # DAPO Math 17K
 
-DAPO Math 17K training configurations. Set up a [configured container](../../README.md#environment), then run these commands from the repository root inside it.
+Train Qwen2.5-3B with DAPO on DAPO Math 17K and evaluate on AIME 2024. Set up the [container](../../README.md#environment), then run these commands from the repository root inside it.
 
 ## Dataset
 
@@ -8,8 +8,6 @@ DAPO Math 17K training configurations. Set up a [configured container](../../REA
 hf download --repo-type dataset zhuzilin/dapo-math-17k --local-dir /root/datasets/dapo-math-17k
 hf download --repo-type dataset zhuzilin/aime-2024 aime-2024.jsonl --local-dir /root/datasets/aime-2024
 ```
-
-The training dataset must contain `dapo-math-17k.jsonl` with `prompt` and `label` fields. Training applies the chat template, shuffles rollout prompts, and balances the data. Evaluation uses `/root/datasets/aime-2024/aime-2024.jsonl`.
 
 ## Setup
 
@@ -24,9 +22,7 @@ MAX_JOBS=4 CPATH="${TE_SITE_PACKAGES}/nvidia/cudnn/include:${TE_SITE_PACKAGES}/n
 wandb login
 ```
 
-## Configurations
-
-Both configurations target one 96 GB GPU, train on DAPO Math 17K, and evaluate AIME 2024 before training and every five iterations.
+## Training
 
 ### Qwen2.5 3B
 
@@ -40,15 +36,13 @@ LoRA fine-tuning:
 bash tasks/dapo_math_17k/qwen25_3b_dapo_dapo_math_17k_lora.sh
 ```
 
-Full fine-tuning (checkpoint saving disabled):
+Full fine-tuning:
 
 ```bash
 bash tasks/dapo_math_17k/qwen25_3b_dapo_dapo_math_17k.sh
 ```
 
-LoRA checkpoints are saved under `/data/lora/dapo_math_17k/qwen25_3b_dapo_dapo_math_17k_lora/` every five iterations. Every training rollout is saved under `/data/rollouts/dapo_math_17k/<script-name>/<UTC-timestamp>/rollout_{rollout_id}.pt`, where `<script-name>` excludes `.sh`. Evaluation dumps use `rollout_eval_<id>.pt` in the same directory.
-
-Both runs use a local DeepScaler adapter for non-thinking responses: correct boxed answers score 1; incorrect or unboxed answers score 0. The original scorer requires a thinking-end marker.
+Reward correct boxed answers.
 
 Reward tests:
 

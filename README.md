@@ -1,9 +1,10 @@
 # rl
+
 rl experiments
 
 infra: [miles](https://github.com/radixark/miles)
 
-standard configurations are in [tasks](tasks/README.md)
+standard training tasks are in [tasks](tasks/README.md)
 
 experiment variants are in [experiments](experiments/)
 

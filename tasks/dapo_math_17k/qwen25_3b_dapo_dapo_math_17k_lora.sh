@@ -121,6 +121,7 @@ SGLANG_ARGS=(
 )
 
 MISC_ARGS=(
+   --seed 42
    # default dropout in megatron is 0.1
    --attention-dropout 0.0
    --hidden-dropout 0.0

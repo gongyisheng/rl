@@ -1,4 +1,4 @@
-"""Unit tests for GSM8K length-control rewards."""
+"""Unit tests for length-control rewards."""
 
 import asyncio
 from dataclasses import dataclass
@@ -130,7 +130,7 @@ class MilesRewardTests(unittest.TestCase):
         self.modules.stop()
 
     def test_v1_returns_absolute_length_rewards_without_mutating_samples(self) -> None:
-        args = SimpleNamespace(reward_key=None)
+        args = SimpleNamespace(reward_key=None, rollout_max_response_len=1024)
         samples = [
             make_sample("answer", "answer", 0),
             make_sample("answer", "answer", 512),
@@ -146,7 +146,7 @@ class MilesRewardTests(unittest.TestCase):
         )
 
     def test_v2_scores_unscored_all_correct_group(self) -> None:
-        args = SimpleNamespace(reward_key=None)
+        args = SimpleNamespace(reward_key=None, rollout_max_response_len=1024)
         samples = [make_sample("answer", "answer", 100), make_sample("answer", "answer", 200)]
 
         returned_rewards = asyncio.run(rewards.v2(args, samples))
@@ -156,7 +156,7 @@ class MilesRewardTests(unittest.TestCase):
         self.assertEqual([sample.reward for sample in samples], [None, None])
 
     def test_all_wrong_tied_and_singleton_groups_return_expected_rewards(self) -> None:
-        args = SimpleNamespace(reward_key=None)
+        args = SimpleNamespace(reward_key=None, rollout_max_response_len=1024)
         all_wrong = [make_sample("wrong", "answer", 100), make_sample("wrong", "answer", 200)]
         tied_correct = [make_sample("answer", "answer", 100), make_sample("answer", "answer", 100)]
         singleton = [make_sample("answer", "answer", 100)]
@@ -166,7 +166,7 @@ class MilesRewardTests(unittest.TestCase):
         self.assertEqual(asyncio.run(rewards.v2(args, singleton)), [0.9])
 
     def test_repeated_calls_are_idempotent_and_preserve_metadata(self) -> None:
-        args = SimpleNamespace(reward_key=None)
+        args = SimpleNamespace(reward_key=None, rollout_max_response_len=1024)
         samples = [
             make_sample("answer", "answer", 256, metadata={"source": "first"}),
             make_sample("wrong", "answer", 128, metadata={"source": "second"}),
@@ -183,7 +183,7 @@ class MilesRewardTests(unittest.TestCase):
         )
 
     def test_mixed_group_index_raises(self) -> None:
-        args = SimpleNamespace(reward_key=None)
+        args = SimpleNamespace(reward_key=None, rollout_max_response_len=1024)
         samples = [
             make_sample("answer", "answer", 100, group_index=0),
             make_sample("answer", "answer", 200, group_index=1),
@@ -192,23 +192,78 @@ class MilesRewardTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             asyncio.run(rewards.v1(args, samples))
 
-    def test_custom_alpha_and_max_length_are_used(self) -> None:
+    def test_custom_alpha_and_rollout_limit_are_used(self) -> None:
         args = SimpleNamespace(
             reward_key=None,
             length_penalty_alpha=0.4,
-            length_penalty_max_length=100,
+            rollout_max_response_len=200,
         )
         samples = [make_sample("answer", "answer", 50), make_sample("answer", "answer", 200)]
 
-        self.assertEqual(asyncio.run(rewards.v1(args, samples)), [0.8, 0.6])
+        self.assertEqual(asyncio.run(rewards.v1(args, samples)), [0.9, 0.6])
+
+    def test_v1_uses_authoritative_rollout_limit(self) -> None:
+        for rollout_max_response_len in (1024, 8192):
+            args = SimpleNamespace(
+                reward_key=None,
+                rollout_max_response_len=rollout_max_response_len,
+            )
+            samples = [
+                make_sample("answer", "answer", rollout_max_response_len / 2),
+            ]
+
+            self.assertEqual(asyncio.run(rewards.v1(args, samples)), [0.9])
 
     def test_custom_alpha_is_used_by_v2(self) -> None:
-        args = SimpleNamespace(reward_key=None, length_penalty_alpha=0.4)
+        args = SimpleNamespace(
+            reward_key=None,
+            length_penalty_alpha=0.4,
+            rollout_max_response_len=1024,
+        )
         samples = [make_sample("answer", "answer", 100), make_sample("answer", "answer", 200)]
 
         returned_rewards = asyncio.run(rewards.v2(args, samples))
         self.assertAlmostEqual(returned_rewards[0], 0.8924234315, places=9)
         self.assertAlmostEqual(returned_rewards[1], 0.7075765685, places=9)
+
+    def test_deepscaler_uses_the_task_adapter(self) -> None:
+        calls = []
+
+        async def deepscaler(args, sample):
+            calls.append((args, sample.response, sample.label))
+            return sample.response == "boxed"
+
+        tasks = ModuleType("tasks")
+        tasks.__path__ = []
+        dapo_math_17k = ModuleType("tasks.dapo_math_17k")
+        dapo_math_17k.__path__ = []
+        task_rewards = ModuleType("tasks.dapo_math_17k.rewards")
+        task_rewards.deepscaler = deepscaler
+        args = SimpleNamespace(
+            rm_type="deepscaler",
+            reward_key=None,
+            rollout_max_response_len=8192,
+        )
+        samples = [
+            make_sample("boxed", "answer", 4096),
+            make_sample("plain", "answer", 512),
+        ]
+
+        with mock.patch.dict(
+            sys.modules,
+            {
+                "tasks": tasks,
+                "tasks.dapo_math_17k": dapo_math_17k,
+                "tasks.dapo_math_17k.rewards": task_rewards,
+            },
+        ):
+            returned_rewards = asyncio.run(rewards.v1(args, samples))
+
+        self.assertEqual(returned_rewards, [0.9, 0.0])
+        self.assertEqual([call[1:] for call in calls], [("boxed", "answer"), ("plain", "answer")])
+        self.assertEqual(
+            [sample.metadata["length_control_accuracy"] for sample in samples], [1, 0]
+        )
 
 
 @dataclass
@@ -295,6 +350,29 @@ class EvaluationAdapterTests(unittest.TestCase):
         self.assertEqual(supplied_args.custom_rm_path, "rewards.v2")
         self.assertEqual(supplied_args.rm_type, "dapo")
         self.assertTrue(self_args.group_rm)
+
+    def test_preserves_deepscaler_scoring_without_mutating_training_arguments(self) -> None:
+        training_args = SimpleNamespace(
+            group_rm=True,
+            custom_rm_path="experiments.length_control.rewards.v1",
+            rm_type="deepscaler",
+        )
+        training_state = SimpleNamespace(args=training_args, cache="train-cache")
+        adapter = self.evaluation.MathEvalRolloutFn.__new__(self.evaluation.MathEvalRolloutFn)
+        adapter.state = training_state
+        input = EvaluationInput(generate_state=None, request_id="deepscaler", payload="keep")
+
+        asyncio.run(adapter._call_eval(input))
+
+        eval_args = adapter.delegated_input.generate_state.args
+        self.assertFalse(eval_args.group_rm)
+        self.assertEqual(eval_args.rm_type, "deepscaler")
+        self.assertEqual(
+            eval_args.custom_rm_path, "tasks.dapo_math_17k.rewards.deepscaler"
+        )
+        self.assertTrue(training_args.group_rm)
+        self.assertEqual(training_args.custom_rm_path, "experiments.length_control.rewards.v1")
+        self.assertEqual(training_args.rm_type, "deepscaler")
 
 
 if __name__ == "__main__":
