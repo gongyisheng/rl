@@ -9,7 +9,7 @@ hf download --repo-type dataset zhuzilin/dapo-math-17k --local-dir /root/dataset
 hf download --repo-type dataset zhuzilin/aime-2024 aime-2024.jsonl --local-dir /root/datasets/aime-2024
 ```
 
-The training dataset must contain `dapo-math-17k.jsonl` with `prompt` and `label` fields. Training applies the chat template, shuffles rollout prompts, balances the data, and uses the `deepscaler` reward model. Evaluation uses `/root/datasets/aime-2024/aime-2024.jsonl`.
+The training dataset must contain `dapo-math-17k.jsonl` with `prompt` and `label` fields. Training applies the chat template, shuffles rollout prompts, and balances the data. Evaluation uses `/root/datasets/aime-2024/aime-2024.jsonl`.
 
 ## Setup
 
@@ -26,7 +26,7 @@ wandb login
 
 ## Configurations
 
-Both configurations retain the GSM8K training hyperparameters and use rollout seed `42`. They evaluate AIME 2024 every five iterations with 16 samples per prompt and a maximum response length of 16,384; evaluation sampling uses Miles defaults.
+Both configurations target one 96 GB GPU, train on DAPO Math 17K, and evaluate AIME 2024 before training and every five iterations.
 
 ### Qwen2.5 3B
 
@@ -46,4 +46,12 @@ Full fine-tuning (checkpoint saving disabled):
 bash tasks/dapo_math_17k/qwen25_3b_dapo_dapo_math_17k.sh
 ```
 
-LoRA checkpoints are saved under `/data/checkpoints/dapo_math_17k/qwen25_3b_dapo_dapo_math_17k_lora/` every five iterations. Every training rollout is saved under `/data/rollouts/dapo_math_17k/<script-name>/<UTC-timestamp>/rollout_{rollout_id}.pt`, where `<script-name>` excludes `.sh`.
+LoRA checkpoints are saved under `/data/lora/dapo_math_17k/qwen25_3b_dapo_dapo_math_17k_lora/` every five iterations. Every training rollout is saved under `/data/rollouts/dapo_math_17k/<script-name>/<UTC-timestamp>/rollout_{rollout_id}.pt`, where `<script-name>` excludes `.sh`. Evaluation dumps use `rollout_eval_<id>.pt` in the same directory.
+
+Both runs use a local DeepScaler adapter for non-thinking responses: correct boxed answers score 1; incorrect or unboxed answers score 0. The original scorer requires a thinking-end marker.
+
+Reward tests:
+
+```bash
+python -m pytest -q tasks/dapo_math_17k/test_rewards.py
+```

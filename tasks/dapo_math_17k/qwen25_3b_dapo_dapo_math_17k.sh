@@ -2,7 +2,7 @@
 export FLASHINFER_DISABLE_VERSION_CHECK=1
 export GPUS_PER_NODE=1
 # will prevent ray from buffering stdout/stderr
-export PYTHONBUFFERED=1
+export PYTHONUNBUFFERED=1
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
 
 # for rerun the task
@@ -19,6 +19,8 @@ set -ex
 
 rollout_run_dir="/data/rollouts/dapo_math_17k/qwen25_3b_dapo_dapo_math_17k/$(date -u +%Y%m%dT%H%M%S%N)"
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 MILES_ROOT=/root/miles
 MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_utils.py" "qwen2.5-3B")" || exit 1
 read -ra MODEL_ARGS <<< "${MODEL_ARGS_LINE}"
@@ -39,10 +41,11 @@ ROLLOUT_ARGS=(
    --balance-data
    --rollout-seed 42
    --rm-type deepscaler
+   --custom-rm-path tasks.dapo_math_17k.rewards.deepscaler
    --num-rollout 250
    --rollout-batch-size 32
    --n-samples-per-prompt 8
-   --rollout-max-response-len 1024
+   --rollout-max-response-len 8192
    --rollout-temperature 1
    --over-sampling-batch-size 32
    --dynamic-sampling-filter-path miles.rollout.filter_hub.dynamic_sampling_filters.check_reward_nonzero_std
@@ -68,6 +71,11 @@ PERF_ARGS=(
    --qkv-format thd
    --use-dynamic-batch-size
    --max-tokens-per-gpu 4096
+   --log-probs-max-tokens-per-gpu 4096
+   # Full Adam state leaves less room for long-response activations than LoRA.
+   --recompute-granularity full
+   --recompute-method uniform
+   --recompute-num-layers 1
 
    --no-offload-train
 )
@@ -102,12 +110,10 @@ WANDB_ARGS=(
 
 SGLANG_ARGS=(
    --rollout-num-gpus-per-engine 1
-   # --sglang-mem-fraction-static 0.7
    --sglang-mem-fraction-static 0.4
-
-   # --sglang-enable-deterministic-inference
-   # --sglang-attention-backend flashinfer
-   # --deterministic-mode
+   --sglang-max-running-requests 128
+   --sglang-cuda-graph-max-bs-decode 128
+   --sglang-chunked-prefill-size 2048
 )
 
 MISC_ARGS=(
@@ -125,6 +131,7 @@ MISC_ARGS=(
 ray start --head --node-ip-address 127.0.0.1 --num-gpus $GPUS_PER_NODE --disable-usage-stats
 
 ray job submit --address="http://127.0.0.1:8265" \
+   --working-dir "${REPO_ROOT}" \
    --runtime-env-json='{
      "env_vars": {
         "PYTHONPATH": "/root/Megatron-LM",
@@ -150,4 +157,5 @@ ray job submit --address="http://127.0.0.1:8265" \
    "${EVAL_ARGS[@]}" \
    "${SGLANG_ARGS[@]}" \
    "${MISC_ARGS[@]}" \
-   "${ROLLOUT_ARGS[@]}"
+   "${ROLLOUT_ARGS[@]}" \
+   "$@"
