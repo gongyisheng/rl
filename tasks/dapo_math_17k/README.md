@@ -6,10 +6,10 @@ DAPO Math 17K training configurations. Set up a [configured container](../../REA
 
 ```bash
 hf download --repo-type dataset zhuzilin/dapo-math-17k --local-dir /root/datasets/dapo-math-17k
-hf download --repo-type dataset zhuzilin/aime-2024 aime-2024.jsonl --local-dir /root/datasets
+hf download --repo-type dataset zhuzilin/aime-2024 aime-2024.jsonl --local-dir /root/datasets/aime-2024
 ```
 
-The training dataset must contain `dapo-math-17k.jsonl` with `prompt` and `label` fields. Training applies the chat template, shuffles rollout prompts, balances the data, and uses the `deepscaler` reward model. Evaluation uses `/root/datasets/aime-2024.jsonl`.
+The training dataset must contain `dapo-math-17k.jsonl` with `prompt` and `label` fields. Training applies the chat template, shuffles rollout prompts, balances the data, and uses the `deepscaler` reward model. Evaluation uses `/root/datasets/aime-2024/aime-2024.jsonl`.
 
 ## Setup
 
