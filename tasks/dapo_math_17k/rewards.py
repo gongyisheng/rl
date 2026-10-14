@@ -1,4 +1,4 @@
-"""DeepScaler answer grading for Qwen2.5's non-thinking responses."""
+"""DeepScaler answer grading for non-thinking responses."""
 
 from miles.rollout.rm_hub.deepscaler import get_deepscaler_rule_based_reward
 

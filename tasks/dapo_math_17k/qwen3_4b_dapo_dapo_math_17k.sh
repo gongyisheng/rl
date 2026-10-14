@@ -28,8 +28,8 @@ MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_
 read -ra MODEL_ARGS <<< "${MODEL_ARGS_LINE}"
 
 CKPT_ARGS=(
-   --hf-checkpoint /root/models/Qwen3-4B/
-   # --ref-load /root/models/Qwen3-4B/
+   --hf-checkpoint /root/models/Qwen3-4B-Base/
+   # --ref-load /root/models/Qwen3-4B-Base/
    --megatron-to-hf-mode bridge
 )
 
@@ -43,6 +43,7 @@ ROLLOUT_ARGS=(
    --balance-data
    --rollout-seed 42
    --rm-type deepscaler
+   --custom-rm-path tasks.dapo_math_17k.rewards.deepscaler
    --num-rollout 250
    --rollout-batch-size 32
    --n-samples-per-prompt 8
@@ -81,7 +82,7 @@ PERF_ARGS=(
    --recompute-method uniform
    --recompute-num-layers 1
 
-   # Leave GPU memory for long reasoning rollouts without a full host-RAM copy.
+   # Leave GPU memory for long rollouts without a full host-RAM copy.
    --offload-train
    --offload-train-target disk
    --offload-train-disk-dir "${offload_run_dir}"
@@ -114,7 +115,7 @@ WANDB_ARGS=(
    --use-wandb
    --wandb-host https://wandb.ai/
    --wandb-project rl-dapo-math-17k
-   --wandb-group qwen3-4B-dapo-dapo-math-17k
+   --wandb-group qwen3-4B-base-dapo-dapo-math-17k
    --disable-wandb-random-suffix
 )
 

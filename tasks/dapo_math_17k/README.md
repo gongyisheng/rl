@@ -1,6 +1,6 @@
 # DAPO Math 17K
 
-Train Qwen2.5-3B or Qwen3-4B with DAPO on DAPO Math 17K and evaluate on AIME 2024. Set up the [container](../../README.md#environment), then run these commands from the repository root inside it.
+Train Qwen2.5-3B or Qwen3-4B-Base with DAPO on DAPO Math 17K and evaluate on AIME 2024. Set up the [container](../../README.md#environment), then run these commands from the repository root inside it.
 
 ## Dataset
 
@@ -50,18 +50,22 @@ Reward tests:
 python -m pytest -q tasks/dapo_math_17k/test_rewards.py
 ```
 
-### Qwen3 4B
+### Qwen3 4B Base
 
-Use the downloaded thinking model at `/root/models/Qwen3-4B`:
+```bash
+hf download Qwen/Qwen3-4B-Base --local-dir /root/models/Qwen3-4B-Base
+```
+
+Use the downloaded base model at `/root/models/Qwen3-4B-Base`:
 
 ```bash
 bash tasks/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k.sh
 bash tasks/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k_lora.sh
 ```
 
-Run one variant at a time. Both use the model's default thinking chat template and Miles' built-in `deepscaler` reward; no custom reward is needed. Rollout and evaluation both use temperature `1` and a `32768`-token response limit. Evaluation omits the top-p/top-k overrides, inheriting unrestricted rollout sampling (top-p `1`, top-k `-1`).
+Run one variant at a time. The Base tokenizer includes a [chat template](https://huggingface.co/Qwen/Qwen3-4B-Base/blob/main/tokenizer_config.json), and the [model card](https://huggingface.co/Qwen/Qwen3-4B-Base) identifies its training stage as pretraining. Both variants retain `--apply-chat-template` and use the same `tasks.dapo_math_17k.rewards.deepscaler` adapter as Qwen2.5-3B to grade boxed answers without requiring thinking tags. Rollout and evaluation both use temperature `1` and a `32768`-token response limit. Evaluation omits the top-p/top-k overrides, inheriting unrestricted rollout sampling (top-p `1`, top-k `-1`).
 
-The Qwen2.5 baselines supply the remaining DAPO settings: 250 rollouts, 32 prompts × 8 responses per rollout, global batch size 256, and AIME 2024 evaluation every 5 rollouts with 16 responses per problem. Both Qwen3 variants use activation recomputation and 512-token log-probability chunks for long thinking responses. Full fine-tuning uses learning rate `1e-6` and saves no checkpoints. LoRA uses rank/alpha `32`, learning rate `1e-5`, and saves every 5 rollouts under a unique run directory in `/data/lora/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k_lora/`.
+The Qwen2.5 baselines supply the remaining DAPO settings: 250 rollouts, 32 prompts × 8 responses per rollout, global batch size 256, and AIME 2024 evaluation every 5 rollouts with 16 responses per problem. Both Qwen3 variants use activation recomputation and 512-token log-probability chunks for long responses. Full fine-tuning uses learning rate `1e-6` and saves no checkpoints. LoRA uses rank/alpha `32`, learning rate `1e-5`, and saves every 5 rollouts under a unique run directory in `/data/lora/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k_lora/`.
 
 Both Qwen3 variants use SGLang memory fraction `0.75` and at most `32` running requests to reduce KV-cache pressure during long responses. The training batch remains 32 prompts × 8 responses, with global batch size 256.
 
@@ -96,7 +100,7 @@ WANDB_MODE=offline bash tasks/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k_lora.sh 
 
 These commands retain the production response limits and sampling settings. Check `rollout/truncated_ratio` and `eval/aime-2024-truncated_ratio` in the logs; each must be below `0.1`. Debug response dumps are saved under `/data/rollouts/dapo_math_17k/` for independent status checks. Both tests evaluate after training; the LoRA test also exercises checkpoint saving.
 
-Historical validation on one RTX PRO 6000 Blackwell (96 GB), with global batch size 256, used the previous evaluation settings (`38912` tokens, temperature `0.6`, top-p `0.95`, top-k `20`). These results have not been rerun with the current evaluation settings:
+Historical validation of the former `Qwen/Qwen3-4B` model on one RTX PRO 6000 Blackwell (96 GB), with global batch size 256, used the previous evaluation settings (`38912` tokens, temperature `0.6`, top-p `0.95`, top-k `20`). These results have not been rerun for Qwen3-4B-Base or the current settings:
 
 | Variant | Rollout truncation | Post-training eval truncation |
 | --- | --- | --- |
