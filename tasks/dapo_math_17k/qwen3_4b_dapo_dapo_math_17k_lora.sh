@@ -69,10 +69,8 @@ EVAL_ARGS=(
    --eval-interval 5
    --eval-prompt-data aime-2024 /root/datasets/aime-2024/aime-2024.jsonl
    --n-samples-per-eval-prompt 16
-   --eval-max-response-len 38912
-   --eval-temperature 0.6
-   --eval-top-p 0.95
-   --eval-top-k 20
+   --eval-max-response-len 32768
+   --eval-temperature 1
 )
 
 PERF_ARGS=(

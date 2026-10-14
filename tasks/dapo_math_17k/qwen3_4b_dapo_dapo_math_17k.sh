@@ -18,7 +18,8 @@ pkill -9 python
 set -ex
 
 rollout_run_dir="/data/rollouts/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k/$(date -u +%Y%m%dT%H%M%S%N)"
-offload_run_dir="/data/offload/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k/$(date -u +%Y%m%dT%H%M%S%N)"
+# Reuse scratch after process cleanup so Miles can reclaim files from interrupted runs.
+offload_run_dir="/data/offload/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k/current"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
@@ -57,10 +58,8 @@ EVAL_ARGS=(
    --eval-interval 5
    --eval-prompt-data aime-2024 /root/datasets/aime-2024/aime-2024.jsonl
    --n-samples-per-eval-prompt 16
-   --eval-max-response-len 38912
-   --eval-temperature 0.6
-   --eval-top-p 0.95
-   --eval-top-k 20
+   --eval-max-response-len 32768
+   --eval-temperature 1
 )
 
 PERF_ARGS=(

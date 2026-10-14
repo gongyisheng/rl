@@ -59,11 +59,23 @@ bash tasks/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k.sh
 bash tasks/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k_lora.sh
 ```
 
-Run one variant at a time. Both use the model's default thinking chat template and Miles' built-in `deepscaler` reward; no custom reward is needed. Rollout retains the baseline temperature `1` and unrestricted sampling. Evaluation uses the model-recommended temperature `0.6`, top-p `0.95`, and top-k `20`. Response limits are `32768` tokens for rollout and `38912` for evaluation.
+Run one variant at a time. Both use the model's default thinking chat template and Miles' built-in `deepscaler` reward; no custom reward is needed. Rollout and evaluation both use temperature `1` and a `32768`-token response limit. Evaluation omits the top-p/top-k overrides, inheriting unrestricted rollout sampling (top-p `1`, top-k `-1`).
 
 The Qwen2.5 baselines supply the remaining DAPO settings: 250 rollouts, 32 prompts × 8 responses per rollout, global batch size 256, and AIME 2024 evaluation every 5 rollouts with 16 responses per problem. Both Qwen3 variants use activation recomputation and 512-token log-probability chunks for long thinking responses. Full fine-tuning uses learning rate `1e-6` and saves no checkpoints. LoRA uses rank/alpha `32`, learning rate `1e-5`, and saves every 5 rollouts under a unique run directory in `/data/lora/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k_lora/`.
 
-Full training parks the paused actor on local NVMe under `/data/offload/dapo_math_17k/`, allowing SGLang to use memory fraction `0.7` for long responses without retaining a full actor copy in system RAM. It also streams the FP32 optimizer state from NVMe, so Adam's moments do not exhaust GPU memory on later updates. These are temporary offload files, not checkpoints. Scratch directories can remain after a run; remove them only after that run's processes stop. LoRA retains the baseline CPU offload and SGLang memory fraction `0.7`.
+Full training parks the paused actor on local NVMe under `/data/offload/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k/current/`, allowing SGLang to use memory fraction `0.7` for long responses without retaining a full actor copy in system RAM. It also streams the FP32 optimizer state from NVMe, so Adam's moments do not exhaust GPU memory on later updates. These are temporary offload files, not checkpoints. LoRA retains the baseline CPU offload and SGLang memory fraction `0.7`.
+
+[Miles disk offload](https://github.com/radixark/miles/blob/main/docs/advanced/disk-offload.md) reuses actor backup files and optimizer buckets each step, so scratch usage should settle after initialization rather than grow with the rollout count. Forced termination can bypass exit cleanup. The full script reuses the `current/` scratch directory after stopping previous training processes, allowing Miles to reclaim its rank directories at startup instead of accumulating timestamped directories across restarts. Run only one instance at a time. Older timestamped scratch directories are not reclaimed by this change; remove them only after their training processes have stopped. Never delete the active scratch files, which contain live training state.
+
+To locate disk growth during a run, compare these directory sizes over time:
+
+```bash
+du -sh /data/offload/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k/* \
+  /data/rollouts/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k /tmp/ray
+df -h /data /tmp
+```
+
+Debug dumps deliberately accumulate: `--save-debug-rollout-data` saves each rollout/evaluation plus dashboard data under `/data/rollouts/`. If those records are unnecessary, remove that argument from `ROLLOUT_ARGS` before launching; this disables future dumps without changing disk offload. Ray logs under `/tmp/ray` are another independent source of growth. If the active offload directory itself keeps growing after initialization, inspect its files and the installed Miles/torch_memory_saver version rather than deleting live files.
 
 For a short validation run, retain global batch size 256 and 32 accepted prompt groups × 8 responses. Run two optimizer steps followed by one evaluation, using 2 responses per AIME problem (60 responses total):
 
@@ -82,7 +94,7 @@ WANDB_MODE=offline bash tasks/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k_lora.sh 
 
 These commands retain the production response limits and sampling settings. Check `rollout/truncated_ratio` and `eval/aime-2024-truncated_ratio` in the logs; each must be below `0.1`. Debug response dumps are saved under `/data/rollouts/dapo_math_17k/` for independent status checks. Both tests evaluate after training; the LoRA test also exercises checkpoint saving.
 
-Validation on one RTX PRO 6000 Blackwell (96 GB), with global batch size 256:
+Historical validation on one RTX PRO 6000 Blackwell (96 GB), with global batch size 256, used the previous evaluation settings (`38912` tokens, temperature `0.6`, top-p `0.95`, top-k `20`). These results have not been rerun with the current evaluation settings:
 
 | Variant | Rollout truncation | Post-training eval truncation |
 | --- | --- | --- |
