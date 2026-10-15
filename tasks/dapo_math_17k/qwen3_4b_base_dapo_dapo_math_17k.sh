@@ -48,6 +48,8 @@ ROLLOUT_ARGS=(
    --rollout-batch-size 32
    --n-samples-per-prompt 8
    --rollout-max-response-len 32768
+   # Qwen3-4B-Base's context window includes both prompt and response (also used by eval).
+   --rollout-max-context-len 32768
    --rollout-temperature 1
    --over-sampling-batch-size 32
    --dynamic-sampling-filter-path miles.rollout.filter_hub.dynamic_sampling_filters.check_reward_nonzero_std

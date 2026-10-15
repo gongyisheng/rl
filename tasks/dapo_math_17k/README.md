@@ -59,11 +59,11 @@ hf download Qwen/Qwen3-4B-Base --local-dir /root/models/Qwen3-4B-Base
 Use the downloaded base model at `/root/models/Qwen3-4B-Base`:
 
 ```bash
-bash tasks/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k.sh
-bash tasks/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k_lora.sh
+bash tasks/dapo_math_17k/qwen3_4b_base_dapo_dapo_math_17k.sh
+bash tasks/dapo_math_17k/qwen3_4b_base_dapo_dapo_math_17k_lora.sh
 ```
 
-Run one variant at a time. The Base tokenizer includes a [chat template](https://huggingface.co/Qwen/Qwen3-4B-Base/blob/main/tokenizer_config.json), and the [model card](https://huggingface.co/Qwen/Qwen3-4B-Base) identifies its training stage as pretraining. Both variants retain `--apply-chat-template` and use the same `tasks.dapo_math_17k.rewards.deepscaler` adapter as Qwen2.5-3B to grade boxed answers without requiring thinking tags. Rollout and evaluation both use temperature `1` and a `32768`-token response limit. Evaluation omits the top-p/top-k overrides, inheriting unrestricted rollout sampling (top-p `1`, top-k `-1`).
+Run one variant at a time. The Base tokenizer includes a [chat template](https://huggingface.co/Qwen/Qwen3-4B-Base/blob/main/tokenizer_config.json), and the [model card](https://huggingface.co/Qwen/Qwen3-4B-Base) identifies its training stage as pretraining. Both variants retain `--apply-chat-template` and use the same `tasks.dapo_math_17k.rewards.deepscaler` adapter as Qwen2.5-3B to grade boxed answers without requiring thinking tags. Rollout and evaluation both use temperature `1` and a `32768`-token response cap, subject to a total prompt-plus-response limit of `32768` tokens. Both scripts set `--rollout-max-context-len 32768`, which Miles also applies to evaluation requests, reducing each response budget to fit its prompt. This matches the Base model's [context window](https://huggingface.co/Qwen/Qwen3-4B-Base/blob/main/config.json). Without this limit, SGLang rejects requests with HTTP 400 because prompt tokens plus 32768 output tokens exceed the context window; repeated failures can then surface as router HTTP 503 errors. Evaluation omits the top-p/top-k overrides, inheriting unrestricted rollout sampling (top-p `1`, top-k `-1`).
 
 The Qwen2.5 baselines supply the remaining DAPO settings: 250 rollouts, 32 prompts × 8 responses per rollout, global batch size 256, and AIME 2024 evaluation every 5 rollouts with 16 responses per problem. Both Qwen3 variants use activation recomputation and 512-token log-probability chunks for long responses. Full fine-tuning uses learning rate `1e-6` and saves no checkpoints. LoRA uses rank/alpha `32`, learning rate `1e-5`, and saves every 5 rollouts under a unique run directory in `/data/lora/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k_lora/`.
 
@@ -87,12 +87,12 @@ For a short validation run, retain global batch size 256 and 32 accepted prompt 
 
 ```bash
 mkdir -p logs/qwen3_4b_validation
-WANDB_MODE=offline bash tasks/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k.sh \
+WANDB_MODE=offline bash tasks/dapo_math_17k/qwen3_4b_base_dapo_dapo_math_17k.sh \
   --debug-exit-after-rollout 2 \
   --n-samples-per-eval-prompt 2 --skip-eval-before-train --eval-interval 2 \
   > logs/qwen3_4b_validation/full.log 2>&1
 
-WANDB_MODE=offline bash tasks/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k_lora.sh \
+WANDB_MODE=offline bash tasks/dapo_math_17k/qwen3_4b_base_dapo_dapo_math_17k_lora.sh \
   --debug-exit-after-rollout 2 \
   --n-samples-per-eval-prompt 2 --skip-eval-before-train --eval-interval 2 \
   --save-interval 2 > logs/qwen3_4b_validation/lora.log 2>&1
