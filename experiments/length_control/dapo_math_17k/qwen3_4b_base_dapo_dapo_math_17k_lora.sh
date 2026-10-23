@@ -1,8 +1,9 @@
 #!/bin/bash
 export FLASHINFER_DISABLE_VERSION_CHECK=1
 export GPUS_PER_NODE=1
+# will prevent ray from buffering stdout/stderr
 export PYTHONUNBUFFERED=1
-export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
+export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
 
 # for rerun the task
 pkill sglang
@@ -16,33 +17,31 @@ pkill -9 python
 
 set -ex
 
-version="v2"
-alpha="1e-3"
-run_name="qwen25_3b_dapo_dapo_math_17k_${version}_lora_alpha_${alpha}"
+run_name="qwen3_4b_base_dapo_dapo_math_17k_lora"
 rollout_run_dir="/data/rollouts/length_control/${run_name}/$(date -u +%Y%m%dT%H%M%S%N)"
+
+ckpt_base_dir="/data/length_control/dapo_math_17k/${run_name}"
+ckpt_run_dir="${ckpt_base_dir}/$(date -u +%Y%m%dT%H%M%S%N)"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
 MILES_ROOT=/root/miles
-ckpt_base_dir="/data/length_control/dapo_math_17k"
-ckpt_run_dir="${ckpt_base_dir}/${version}_alpha_${alpha}"
-CONFIG_PATH="${SCRIPT_DIR}/../reward_alpha_${alpha}.yaml"
-
-MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_utils.py" "qwen2.5-3B")" || exit 1
+MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_utils.py" "qwen3-4B")" || exit 1
 read -ra MODEL_ARGS <<< "${MODEL_ARGS_LINE}"
 
 CKPT_ARGS=(
-   --hf-checkpoint /root/models/Qwen2.5-3B/
+   --hf-checkpoint /root/models/Qwen3-4B-Base/
+   # --ref-load /root/models/Qwen3-4B-Base/
    --megatron-to-hf-mode bridge
    --save "${ckpt_run_dir}"
-   --save-interval 5
+   --save-interval 10
 )
 
 LORA_ARGS=(
-   --lora-rank 32
-   --lora-alpha 32
-   --lora-dropout 0.0
-   --target-modules all-linear
+   --lora-rank 32                    # LoRA rank (typical values: 8, 16, 32, 64)
+   --lora-alpha 32                   # LoRA alpha (usually 2x rank)
+   --lora-dropout 0.0                # LoRA dropout (0.0 for RL training)
+   --target-modules "all-linear"
    --megatron-to-hf-mode bridge
 )
 
@@ -56,25 +55,26 @@ ROLLOUT_ARGS=(
    --balance-data
    --rollout-seed 42
    --rm-type deepscaler
+   --custom-rm-path tasks.dapo_math_17k.rewards.deepscaler
    --num-rollout 250
    --rollout-batch-size 32
    --n-samples-per-prompt 8
-   --rollout-max-response-len 8192
+   --rollout-max-response-len 16384
+   # Qwen3-4B-Base's context window includes both prompt and response (also used by eval).
+   --rollout-max-context-len 32768
    --rollout-temperature 1
    --over-sampling-batch-size 32
-   --custom-rm-path "experiments.length_control.rewards.${version}"
-   --group-rm
    --dynamic-sampling-filter-path miles.rollout.filter_hub.dynamic_sampling_filters.check_reward_nonzero_std
-   --custom-config-path "${CONFIG_PATH}"
+
    --global-batch-size 256
 )
 
 EVAL_ARGS=(
-   --eval-function-path experiments.length_control.evaluation.MathEvalRolloutFn
-   --eval-interval 5
+   --eval-interval 10
    --eval-prompt-data aime-2024 /root/datasets/aime-2024/aime-2024.jsonl
    --n-samples-per-eval-prompt 16
-   --eval-max-response-len 16384
+   --eval-max-response-len 32768
+   --eval-temperature 1
 )
 
 PERF_ARGS=(
@@ -84,14 +84,22 @@ PERF_ARGS=(
    --context-parallel-size 1
    --expert-model-parallel-size 1
    --expert-tensor-parallel-size 1
+
    --qkv-format thd
    --use-dynamic-batch-size
    --max-tokens-per-gpu 8192
    --log-probs-max-tokens-per-gpu 8192
+   # Bound vocabulary-sized temporary tensors for long responses.
+   --log-probs-chunk-size 512
+   # Activation checkpointing for long responses.
+   --recompute-granularity full
+   --recompute-method uniform
+   --recompute-num-layers 1
 )
 
 GRPO_ARGS=(
    --advantage-estimator grpo
+   # --use-kl-loss # enable with --ref-load
    --kl-loss-coef 0.00
    --kl-loss-type low_var_kl
    --kl-coef 0.00
@@ -104,7 +112,7 @@ GRPO_ARGS=(
 
 OPTIMIZER_ARGS=(
    --optimizer adam
-   --lr 1e-5
+   --lr 1e-5 # Higher LR often works better for LoRA
    --lr-decay-style constant
    --weight-decay 0.1
    --adam-beta1 0.9
@@ -121,22 +129,26 @@ WANDB_ARGS=(
 
 SGLANG_ARGS=(
    --rollout-num-gpus-per-engine 1
-   --sglang-mem-fraction-static 0.7
-   --sglang-max-running-requests 256
+   --sglang-mem-fraction-static 0.75
+   --sglang-max-running-requests 32
    --sglang-cuda-graph-max-bs-decode 256
    --sglang-chunked-prefill-size 2048
 )
 
 MISC_ARGS=(
    --seed 42
+   # default dropout in megatron is 0.1
    --attention-dropout 0.0
    --hidden-dropout 0.0
+   # should be good for model performance
    --accumulate-allreduce-grads-in-fp32
    --attention-softmax-in-fp32
    --attention-backend flash
 )
 
-ray start --head --node-ip-address 127.0.0.1 --num-gpus "${GPUS_PER_NODE}" --disable-usage-stats
+
+# launch the master node of ray in container
+ray start --head --node-ip-address 127.0.0.1 --num-gpus $GPUS_PER_NODE --disable-usage-stats
 
 ray job submit --address="http://127.0.0.1:8265" \
    --working-dir "${REPO_ROOT}" \
@@ -151,9 +163,9 @@ ray job submit --address="http://127.0.0.1:8265" \
         "NVTE_FLASH_ATTN_V4": "0"
      }
    }' \
-   -- python3 "${MILES_ROOT}/train.py" \
+   -- python3 /root/miles/train.py \
    --actor-num-nodes 1 \
-   --actor-num-gpus-per-node "${GPUS_PER_NODE}" \
+   --actor-num-gpus-per-node $GPUS_PER_NODE \
    --colocate \
    --calculate-per-token-loss \
    "${MODEL_ARGS[@]}" \

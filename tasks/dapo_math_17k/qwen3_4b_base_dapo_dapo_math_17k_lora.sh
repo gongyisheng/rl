@@ -33,7 +33,7 @@ CKPT_ARGS=(
    # --ref-load /root/models/Qwen3-4B-Base/
    --megatron-to-hf-mode bridge
    --save "${ckpt_run_dir}"
-   --save-interval 5
+   --save-interval 10
 )
 
 LORA_ARGS=(
@@ -69,7 +69,7 @@ ROLLOUT_ARGS=(
 )
 
 EVAL_ARGS=(
-   --eval-interval 5
+   --eval-interval 10
    --eval-prompt-data aime-2024 /root/datasets/aime-2024/aime-2024.jsonl
    --n-samples-per-eval-prompt 16
    --eval-max-response-len 32768
