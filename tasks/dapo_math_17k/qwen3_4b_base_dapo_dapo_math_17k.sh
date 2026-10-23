@@ -47,7 +47,7 @@ ROLLOUT_ARGS=(
    --num-rollout 250
    --rollout-batch-size 32
    --n-samples-per-prompt 8
-   --rollout-max-response-len 32768
+   --rollout-max-response-len 16384
    # Qwen3-4B-Base's context window includes both prompt and response (also used by eval).
    --rollout-max-context-len 32768
    --rollout-temperature 1
