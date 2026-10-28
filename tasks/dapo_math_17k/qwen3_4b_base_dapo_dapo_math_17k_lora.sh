@@ -49,7 +49,6 @@ ROLLOUT_ARGS=(
    --prompt-data /root/datasets/dapo-math-17k/dapo-math-17k.jsonl
    --input-key prompt
    --label-key label
-   --apply-chat-template
    --rollout-shuffle
    --balance-data
    --rollout-seed 42
