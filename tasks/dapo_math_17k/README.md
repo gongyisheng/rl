@@ -42,7 +42,25 @@ Full fine-tuning:
 bash tasks/dapo_math_17k/qwen25_3b_dapo_dapo_math_17k.sh
 ```
 
-Reward correct boxed answers.
+All four task scripts use `tasks.dapo_math_17k.rewards.deepscaler`.
+Training rewards correct boxed answers only when the response contains more than
+boxed results, common answer labels (such as `Answer:` or `The final answer is`),
+and formatting. Bare answers such as `Answer: \boxed{42}` receive zero training
+reward even when correct. Empty thinking tags do not bypass the gate; a derivation
+inside thinking tags or ordinary text remains eligible for correctness reward.
+There is no minimum response length, and this narrow format check does not verify
+the reasoning or prevent filler from bypassing it.
+
+The callback returns `reward` (gated correctness), `accuracy` (raw correctness),
+and `answer_only` (0 or 1). `--reward-key reward` applies the gate before dynamic
+sampling and advantage calculation; `--eval-reward-key accuracy` keeps AIME scoring
+based on correctness alone. These fields are also retained in saved rollout
+rewards for inspection. Groups with all-zero gated rewards are filtered out, so
+frequent answer-only responses can increase the sampling needed to fill a batch.
+The shared `deepscaler` callback also applies this gate in DAPO Math 17K
+experiments. Direct callers select the same training and evaluation reward keys;
+length-control variants apply their length penalty to the gated reward while
+retaining raw correctness for accuracy reporting.
 
 Reward tests:
 
@@ -63,7 +81,7 @@ bash tasks/dapo_math_17k/qwen3_4b_base_dapo_dapo_math_17k.sh
 bash tasks/dapo_math_17k/qwen3_4b_base_dapo_dapo_math_17k_lora.sh
 ```
 
-Run one variant at a time. The Base tokenizer includes a [chat template](https://huggingface.co/Qwen/Qwen3-4B-Base/blob/main/tokenizer_config.json), and the [model card](https://huggingface.co/Qwen/Qwen3-4B-Base) identifies its training stage as pretraining. Both variants omit `--apply-chat-template` and use the same `tasks.dapo_math_17k.rewards.deepscaler` adapter as Qwen2.5-3B to grade boxed answers without requiring thinking tags. Rollouts use temperature `1` and a `16384`-token response cap; evaluation uses temperature `1` and a `32768`-token cap. Both scripts set `--rollout-max-context-len 32768`, which Miles also applies to evaluation requests, so each prompt plus response stays within the Base model's [32768-token context window](https://huggingface.co/Qwen/Qwen3-4B-Base/blob/main/config.json). Keep this at `32768`: setting it to `16384` would subtract prompt tokens from the intended `16384`-token rollout response budget. It also prevents SGLang from rejecting evaluation requests with HTTP 400 when prompt tokens plus the 32768-token output cap exceed the context window; repeated failures can then surface as router HTTP 503 errors. Evaluation omits the top-p/top-k overrides, inheriting unrestricted rollout sampling (top-p `1`, top-k `-1`).
+Run one variant at a time. The Base tokenizer includes a [chat template](https://huggingface.co/Qwen/Qwen3-4B-Base/blob/main/tokenizer_config.json), and the [model card](https://huggingface.co/Qwen/Qwen3-4B-Base) identifies its training stage as pretraining. Both variants omit `--apply-chat-template` and use the same `tasks.dapo_math_17k.rewards.deepscaler` adapter as Qwen2.5-3B, with the training-only gate described above and no requirement for thinking tags. Rollouts use temperature `1` and a `16384`-token response cap; evaluation uses temperature `1` and a `32768`-token cap. Both scripts set `--rollout-max-context-len 32768`, which Miles also applies to evaluation requests, so each prompt plus response stays within the Base model's [32768-token context window](https://huggingface.co/Qwen/Qwen3-4B-Base/blob/main/config.json). Keep this at `32768`: setting it to `16384` would subtract prompt tokens from the intended `16384`-token rollout response budget. It also prevents SGLang from rejecting evaluation requests with HTTP 400 when prompt tokens plus the 32768-token output cap exceed the context window; repeated failures can then surface as router HTTP 503 errors. Evaluation omits the top-p/top-k overrides, inheriting unrestricted rollout sampling (top-p `1`, top-k `-1`).
 
 The Qwen2.5 baselines supply the remaining DAPO settings: 250 rollouts, 32 prompts × 8 responses per rollout, and global batch size 256. Both Qwen3 variants evaluate on AIME 2024 every 10 rollouts with 16 responses per problem and use activation recomputation and 512-token log-probability chunks for long responses. Full fine-tuning uses learning rate `1e-6` and saves no checkpoints. LoRA uses rank/alpha `32`, learning rate `1e-5`, and saves every 10 rollouts under a unique run directory in `/data/lora/dapo_math_17k/qwen3_4b_dapo_dapo_math_17k_lora/`.
 

@@ -13,6 +13,8 @@ class MathEvalRolloutFn(InferenceRolloutFn):
         state.args.group_rm = False
         if state.args.rm_type == "deepscaler":
             state.args.custom_rm_path = "tasks.dapo_math_17k.rewards.deepscaler"
+            state.args.reward_key = "reward"
+            state.args.eval_reward_key = "accuracy"
         else:
             state.args.rm_type = "math"
             state.args.custom_rm_path = None

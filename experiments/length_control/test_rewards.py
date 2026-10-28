@@ -231,7 +231,8 @@ class MilesRewardTests(unittest.TestCase):
 
         async def deepscaler(args, sample):
             calls.append((args, sample.response, sample.label))
-            return sample.response == "boxed"
+            return {"reward": int(sample.response == "boxed"),
+                    "accuracy": int(sample.response == "boxed"), "answer_only": 0}
 
         tasks = ModuleType("tasks")
         tasks.__path__ = []
@@ -356,6 +357,8 @@ class EvaluationAdapterTests(unittest.TestCase):
             group_rm=True,
             custom_rm_path="experiments.length_control.rewards.v1",
             rm_type="deepscaler",
+            reward_key=None,
+            eval_reward_key=None,
         )
         training_state = SimpleNamespace(args=training_args, cache="train-cache")
         adapter = self.evaluation.MathEvalRolloutFn.__new__(self.evaluation.MathEvalRolloutFn)
@@ -367,6 +370,10 @@ class EvaluationAdapterTests(unittest.TestCase):
         eval_args = adapter.delegated_input.generate_state.args
         self.assertFalse(eval_args.group_rm)
         self.assertEqual(eval_args.rm_type, "deepscaler")
+        self.assertEqual(eval_args.reward_key, "reward")
+        self.assertEqual(eval_args.eval_reward_key, "accuracy")
+        self.assertIsNone(training_args.reward_key)
+        self.assertIsNone(training_args.eval_reward_key)
         self.assertEqual(
             eval_args.custom_rm_path, "tasks.dapo_math_17k.rewards.deepscaler"
         )

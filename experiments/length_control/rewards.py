@@ -82,13 +82,16 @@ async def _apply_reward(args, samples, version) -> list[float]:
     if getattr(args, "rm_type", None) == "deepscaler":
         from tasks.dapo_math_17k.rewards import deepscaler
 
-        correctness = [int(await deepscaler(args, sample)) for sample in samples]
+        scores = [await deepscaler(args, sample) for sample in samples]
+        correctness = [score["reward"] for score in scores]
+        accuracy = [score["accuracy"] for score in scores]
     else:
         from miles.rollout.rm_hub.math_utils import grade_answer_verl
 
         correctness = [
             int(grade_answer_verl(sample.response, sample.label)) for sample in samples
         ]
+        accuracy = correctness
     response_lengths = [sample.response_length for sample in samples]
     alpha = getattr(args, "length_penalty_alpha", 0.2)
     if version == "v1":
@@ -96,7 +99,7 @@ async def _apply_reward(args, samples, version) -> list[float]:
     else:
         rewards = reward_v2(correctness, response_lengths, alpha)
 
-    for sample, is_correct in zip(samples, correctness):
+    for sample, is_correct in zip(samples, accuracy):
         if sample.metadata is None:
             sample.metadata = {}
         sample.metadata["length_control_accuracy"] = is_correct

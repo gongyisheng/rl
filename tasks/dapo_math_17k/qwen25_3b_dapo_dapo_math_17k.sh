@@ -42,6 +42,7 @@ ROLLOUT_ARGS=(
    --rollout-seed 42
    --rm-type deepscaler
    --custom-rm-path tasks.dapo_math_17k.rewards.deepscaler
+   --reward-key reward
    --num-rollout 250
    --rollout-batch-size 32
    --n-samples-per-prompt 8
@@ -54,6 +55,7 @@ ROLLOUT_ARGS=(
 )
 
 EVAL_ARGS=(
+   --eval-reward-key accuracy
    --eval-interval 5
    --eval-prompt-data aime-2024 /root/datasets/aime-2024/aime-2024.jsonl
    --n-samples-per-eval-prompt 16
