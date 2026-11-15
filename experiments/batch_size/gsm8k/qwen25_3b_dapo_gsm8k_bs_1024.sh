@@ -40,7 +40,7 @@ ROLLOUT_ARGS=(
    --rollout-shuffle
    --rollout-seed 42
    --rm-type math
-   --num-rollout 250
+   --num-rollout 150
    --rollout-batch-size "${rollout_batch_size}"
    --n-samples-per-prompt 8
    --rollout-max-response-len 1024
