@@ -4,7 +4,7 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-for precision_variant in baseline rollout_fp8_w8a16 rollout_fp8_w8a8 train_fp8_w8a16; do
+for precision_variant in baseline rollout_fp8_w8a8 train_fp8_w8a16; do
    variant_suffix=""
    if [[ "${precision_variant}" != baseline ]]; then
       variant_suffix="_${precision_variant}"

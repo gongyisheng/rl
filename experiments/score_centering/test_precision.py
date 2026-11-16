@@ -1,4 +1,4 @@
-"""Numerical checks for the W8A16 adapters; no training job is launched."""
+"""Numerical checks for rollout and training precision; no training job is launched."""
 
 from types import SimpleNamespace
 
@@ -54,27 +54,6 @@ def test_native_qwen_preserves_activations_before_fp8_projection(monkeypatch, co
         actual = qwen3.Qwen3Attention.forward(model, None, x, None)
     assert seen and all(value.dtype == torch.bfloat16 for value in seen)
     torch.testing.assert_close(actual, x, rtol=0, atol=0)
-
-
-def test_rollout_uses_quantized_weights_and_unquantized_activations():
-    from experiments.score_centering.sglang_fp8.models import CheckpointFp8LinearMethod
-
-    generator = torch.Generator().manual_seed(8)
-    source = torch.randn(32, 16, generator=generator)
-    scale = source.abs().amax(dim=0, keepdim=True) / 448
-    quantized = (source / scale).to(torch.float8_e4m3fn)
-    layer = SimpleNamespace(weight=quantized, weight_scale=scale.t())
-    x = torch.randn(7, 32, generator=generator).to(torch.bfloat16)
-    bias = torch.randn(16, generator=generator).to(torch.bfloat16)
-    method = CheckpointFp8LinearMethod(None, weight_only=True)
-    actual = method.apply(layer, x, bias)
-    # Evaluate the represented FP8 matrix in double precision, then apply the
-    # specified BF16 rounding before GEMM. No activation quantization is allowed.
-    represented = (quantized.double() * scale.double()).to(torch.bfloat16)
-    expected = F.linear(x, represented.t(), bias)
-    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
-    with pytest.raises(ValueError, match="16-bit activations"):
-        method.apply(layer, x.float())
 
 
 def test_published_fp8_tensors_pass_through_unchanged():

@@ -1,7 +1,6 @@
 """Load published per-channel FP8 tensors directly; encode live trainer updates."""
 
 import torch
-import torch.nn.functional as F
 
 from sglang.srt.layers.quantization.compressed_tensors.compressed_tensors import (
     CompressedTensorsLinearMethod,
@@ -14,10 +13,6 @@ from sglang.srt.models.qwen3 import Qwen3ForCausalLM
 
 
 class CheckpointFp8LinearMethod(CompressedTensorsLinearMethod):
-    def __init__(self, quant_config, *, weight_only):
-        super().__init__(quant_config)
-        self.weight_only = weight_only
-
     def process_weights_after_loading(self, layer):
         if getattr(layer, "_checkpoint_fp8_ready", False):
             return
@@ -31,16 +26,6 @@ class CheckpointFp8LinearMethod(CompressedTensorsLinearMethod):
         if getattr(layer, "_checkpoint_fp8_ready", False):
             layer.weight.data = layer.weight.data.t()
             layer._checkpoint_fp8_ready = False
-
-    def apply(self, layer, x, bias=None):
-        if not self.weight_only:
-            return super().apply(layer, x, bias)
-        if not isinstance(x, torch.Tensor) or x.dtype not in (torch.bfloat16, torch.float16):
-            raise ValueError("W8A16 requires 16-bit activations")
-        if layer.weight.dtype != torch.float8_e4m3fn:
-            raise ValueError("W8A16 requires E4M3 checkpoint weights")
-        weight = (layer.weight.float() * layer.weight_scale.float().t()).to(x.dtype)
-        return F.linear(x, weight.t(), bias)
 
 
 def encode_updated_weights(weights, quantized_weight_names):
@@ -64,8 +49,6 @@ def encode_updated_weights(weights, quantized_weight_names):
 
 
 class Fp8CheckpointModel:
-    weight_only = False
-
     def __init__(self, config, quant_config=None, prefix=""):
         super().__init__(config, quant_config=quant_config, prefix=prefix)
         self._quantized_weight_names = set()
@@ -79,9 +62,7 @@ class Fp8CheckpointModel:
                 continue
             if scheme.strategy != "channel" or scheme.is_static_input_scheme:
                 raise ValueError("These experiments require per-channel FP8 weights and dynamic activations")
-            layer.quant_method = CheckpointFp8LinearMethod(
-                layer.quant_method.quant_config, weight_only=self.weight_only
-            )
+            layer.quant_method = CheckpointFp8LinearMethod(layer.quant_method.quant_config)
             self._quantized_weight_names.add(name + ".weight")
             parent, _, leaf = name.rpartition(".")
             for projection in split_projections.get(leaf, ()):
@@ -101,12 +82,4 @@ class Qwen3Fp8ForCausalLM(Fp8CheckpointModel, Qwen3ForCausalLM):
     pass
 
 
-class Qwen2W8A16ForCausalLM(Qwen2Fp8ForCausalLM):
-    weight_only = True
-
-
-class Qwen3W8A16ForCausalLM(Qwen3Fp8ForCausalLM):
-    weight_only = True
-
-
-EntryClass = [Qwen2Fp8ForCausalLM, Qwen3Fp8ForCausalLM, Qwen2W8A16ForCausalLM, Qwen3W8A16ForCausalLM]
+EntryClass = [Qwen2Fp8ForCausalLM, Qwen3Fp8ForCausalLM]

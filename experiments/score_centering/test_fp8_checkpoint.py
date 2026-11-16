@@ -54,7 +54,7 @@ def test_checkpoint_bits_and_partial_updates(sglang_context, model_name):
     )
     from sglang.srt.model_loader.loader import DefaultModelLoader
     from experiments.score_centering.sglang_fp8.models import (
-        Qwen2W8A16ForCausalLM,
+        Qwen2Fp8ForCausalLM,
         Qwen3Fp8ForCausalLM,
     )
 
@@ -64,7 +64,7 @@ def test_checkpoint_bits_and_partial_updates(sglang_context, model_name):
     config = AutoConfig.from_pretrained(checkpoint, local_files_only=True)
     config.num_hidden_layers = 1
     quant_config = CompressedTensorsConfig.from_config(config.quantization_config)
-    model_class = Qwen3Fp8ForCausalLM if config.model_type == "qwen3" else Qwen2W8A16ForCausalLM
+    model_class = Qwen3Fp8ForCausalLM if config.model_type == "qwen3" else Qwen2Fp8ForCausalLM
     with torch.device("cuda"):
         model = model_class(config, quant_config)
     with safe_open(checkpoint / "model.safetensors", framework="pt", device="cuda") as f:
