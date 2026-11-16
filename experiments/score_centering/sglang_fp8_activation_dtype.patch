@@ -1,0 +1,35 @@
+diff --git a/python/sglang/srt/models/qwen2.py b/python/sglang/srt/models/qwen2.py
+index 8d7fe35..14544e2 100644
+--- a/python/sglang/srt/models/qwen2.py
++++ b/python/sglang/srt/models/qwen2.py
+@@ -115,5 +115,12 @@ class Qwen2MLP(nn.Module):
+     ) -> torch.Tensor:
+-        if isinstance(x, torch.Tensor) and (
+-            should_force_bfloat16_dense_tensor_math()
+-            or x.dtype != self.gate_up_proj.weight.dtype
++        # Quantized storage dtypes require scale-aware conversion in the linear
++        # method; casting activations directly to FP8 loses that scale.
++        if (
++            isinstance(x, torch.Tensor)
++            and self.gate_up_proj.weight.dtype
++            in (torch.float16, torch.bfloat16, torch.float32)
++            and (
++                should_force_bfloat16_dense_tensor_math()
++                or x.dtype != self.gate_up_proj.weight.dtype
++            )
+         ):
+diff --git a/python/sglang/srt/models/qwen3.py b/python/sglang/srt/models/qwen3.py
+index cea32a4..2db57e0 100644
+--- a/python/sglang/srt/models/qwen3.py
++++ b/python/sglang/srt/models/qwen3.py
+@@ -277,3 +277,9 @@ class Qwen3Attention(nn.Module):
+     ) -> torch.Tensor:
+-        if (
++        # Leave quantized projections' inputs in their activation dtype; the
++        # linear method owns any scale-aware FP8 activation quantization.
++        if self.qkv_proj.weight.dtype in (
++            torch.float16,
++            torch.bfloat16,
++            torch.float32,
++        ) and (
+             should_force_bfloat16_dense_tensor_math()

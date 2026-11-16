@@ -11,6 +11,51 @@ from torch.utils.checkpoint import checkpoint
 from experiments.score_centering import train_precision
 
 
+@pytest.mark.parametrize("component", ["mlp", "attention"])
+def test_native_qwen_preserves_activations_before_fp8_projection(monkeypatch, component):
+    from sglang.srt.models import qwen2, qwen3
+
+    # Exercise the native callers, since a direct linear-method test cannot
+    # detect an unscaled FP8 cast before the projection receives its input.
+    x = torch.tensor([[0.101, -0.303, 1.234, 1234]], dtype=torch.bfloat16)
+    seen = []
+
+    class Projection:
+        weight = torch.empty(4, 4, dtype=torch.float8_e4m3fn)
+
+        def __call__(self, value, **kwargs):
+            seen.append(value)
+            return value, None
+
+    monkeypatch.setattr(qwen2, "should_force_bfloat16_dense_tensor_math", lambda: False)
+    monkeypatch.setattr(qwen2, "is_true_on_policy_enabled", lambda: False)
+    monkeypatch.setattr(qwen3, "should_force_bfloat16_dense_tensor_math", lambda: False)
+    if component == "mlp":
+        model = SimpleNamespace(
+            gate_up_proj=Projection(),
+            down_proj=Projection(),
+            dual_gemm=SimpleNamespace(can_run=lambda *args: False),
+            act_fn=lambda value: value,
+        )
+        actual = qwen2.Qwen2MLP.forward(model, x)
+    else:
+        def prepare(positions, hidden_states):
+            value, _ = model.qkv_proj(hidden_states)
+            return value, value, value
+
+        model = SimpleNamespace(
+            qkv_proj=Projection(),
+            o_proj=Projection(),
+            use_fused_qk_norm_mrope=False,
+            forward_prepare_native=prepare,
+            attn=lambda q, k, v, batch, **kwargs: q,
+        )
+        monkeypatch.setattr(qwen3, "_is_npu", False)
+        actual = qwen3.Qwen3Attention.forward(model, None, x, None)
+    assert seen and all(value.dtype == torch.bfloat16 for value in seen)
+    torch.testing.assert_close(actual, x, rtol=0, atol=0)
+
+
 @pytest.mark.parametrize("per_channel", [False, True])
 def test_rollout_uses_quantized_weights_and_unquantized_activations(per_channel):
     from experiments.score_centering.sglang_w8a16.models import Fp8W8A16LinearMethod

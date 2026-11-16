@@ -4,6 +4,8 @@ export GPUS_PER_NODE=1
 # will prevent ray from buffering stdout/stderr
 export PYTHONUNBUFFERED=1
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+# Use the NCCL bundled with this machine's PyTorch build.
+export LD_LIBRARY_PATH="/opt/sglang/lib/python3.12/site-packages/nvidia/nccl/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 
 # for rerun the task
 pkill sglang
@@ -135,10 +137,10 @@ WANDB_ARGS=(
 
 SGLANG_ARGS=(
    --rollout-num-gpus-per-engine 1
-   --sglang-mem-fraction-static 0.75
-   --sglang-max-running-requests 32
-   --sglang-cuda-graph-max-bs-decode 256
-   --sglang-chunked-prefill-size 2048
+   --sglang-mem-fraction-static 0.8
+   --sglang-max-running-requests 64
+   --sglang-cuda-graph-max-bs-decode 64
+   --sglang-chunked-prefill-size 8192
 )
 
 MISC_ARGS=(
