@@ -6,11 +6,13 @@ Start from each task's full-parameter DAPO script: Qwen3-4B-Base for DAPO Math 1
 
 Each task's runner crosses these precision configurations with `none`, `tis`, and `mis`, executing all 9 runs sequentially:
 
-| Script variant | Rollout | Training |
-| --- | --- | --- |
-| Original scripts (no precision suffix) | BF16 | BF16 |
-| `rollout_fp8_w8a8` | FP8 weights and activations | BF16 |
-| `train_fp8_w8a16` | BF16 | FP8 E4M3 weight fake quantization, BF16 activations/GEMMs |
+| Script variant | Rollout weights/activations | Rollout KV cache | Training |
+| --- | --- | --- | --- |
+| Original scripts (no precision suffix) | BF16 | BF16 | BF16 |
+| `rollout_fp8_w8a8` | FP8 weights and activations | FP8 E4M3 | BF16 |
+| `train_fp8_w8a16` | BF16 | FP8 E4M3 | FP8 E4M3 weight fake quantization, BF16 activations/GEMMs |
+
+Both `rollout_fp8_w8a8` and training-side QAT (`train_fp8_w8a16`) scripts set `--sglang-kv-cache-dtype fp8_e4m3` for inference, across both tasks and all `none`/`tis`/`mis` variants. This applies to rollout and evaluation generation. No calibrated KV scaling factors are supplied; SGLang uses its default scales of `1.0`.
 
 The rollout FP8 W8A8 variants load published checkpoints directly through SGLang's `auto` loader and `compressed-tensors` support:
 
@@ -56,7 +58,7 @@ These are medians of three repetitions after warmup, using synthetic token input
 
 SGLang `3a93821` also needs [this patch](sglang_fp8_activation_dtype.patch), applied on this machine. Its Qwen attention/MLP paths otherwise cast BF16 activations directly to FP8 weight storage without a scale, breaking FP8 rollouts. The patch preserves activation dtypes until the projection's quantization method handles them. Apply it to another checkout of that revision with `git -C /path/to/sglang apply /path/to/rl/experiments/score_centering/sglang_fp8_activation_dtype.patch`.
 
-Validation passed for all 20 shell scripts (`bash -n`), six precision tests, and two published-checkpoint integration tests. The checkpoint tests compare the loaded FP8 bytes and scale values to the downloaded files, then verify repeated partial Q-projection updates preserve K/V and parameter addresses. Both models also passed CUDA graph capture and generation under W8A8, including two live weight updates per model followed by generation with finite top-128 log probabilities. The two native Qwen regression cases reject the unpatched SGLang code. Full RL training was not launched.
+Validation passed for all 20 shell scripts (`bash -n`), six precision tests, and two published-checkpoint integration tests. The checkpoint tests compare the loaded FP8 bytes and scale values to the downloaded files, then verify repeated partial Q-projection updates preserve K/V and parameter addresses. FP8 KV-cache serving checks passed for both models with W8A8 weights/activations and with BF16 weights/activations (the QAT variants' inference configuration). These checks cover CUDA graph capture, two live weight updates per configuration, and generation with finite top-128 log probabilities. The two native Qwen regression cases reject the unpatched SGLang code. Full RL training was not launched.
 
 The original model checkpoints are cached under `/root/models/{Qwen3-4B-Base,Qwen2.5-3B}`. Training and evaluation data are cached under `/root/datasets/{dapo-math-17k,gsm8k,aime-2024}`. Model tensor indexes, tokenizers, and all dataset rows were checked after downloading.
 

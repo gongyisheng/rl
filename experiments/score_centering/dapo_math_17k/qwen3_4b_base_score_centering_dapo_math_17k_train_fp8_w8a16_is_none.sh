@@ -137,6 +137,7 @@ WANDB_ARGS=(
 
 SGLANG_ARGS=(
    --rollout-num-gpus-per-engine 1
+   --sglang-kv-cache-dtype fp8_e4m3
    --sglang-mem-fraction-static 0.8
    --sglang-max-running-requests 64
    --sglang-cuda-graph-max-bs-decode 64

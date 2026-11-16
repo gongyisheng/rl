@@ -121,6 +121,7 @@ SGLANG_ARGS=(
    --sglang-load-format auto
    --sglang-json-model-override-args '{"architectures": ["Qwen2Fp8ForCausalLM"]}'
    --rollout-num-gpus-per-engine 1
+   --sglang-kv-cache-dtype fp8_e4m3
    # --sglang-mem-fraction-static 0.7
    --sglang-mem-fraction-static 0.3
    --sglang-max-running-requests 256
