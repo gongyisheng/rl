@@ -1,0 +1,10 @@
+weight_only_fp8:
+  enabled: true
+  layers:
+    layer_name_regex_pattern: 'decoder\.layers\.\d+\.(self_attention\.linear_(qkv|proj)|mlp\.linear_fc[12])$'
+  transformer_engine:
+    FakeQuant:
+      enabled: true
+      quant_format: FP8E4M3
+      gemms: [fprop, dgrad]
+      tensors: [weight]
