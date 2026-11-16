@@ -56,18 +56,17 @@ def test_native_qwen_preserves_activations_before_fp8_projection(monkeypatch, co
     torch.testing.assert_close(actual, x, rtol=0, atol=0)
 
 
-@pytest.mark.parametrize("per_channel", [False, True])
-def test_rollout_uses_quantized_weights_and_unquantized_activations(per_channel):
-    from experiments.score_centering.sglang_w8a16.models import Fp8W8A16LinearMethod
+def test_rollout_uses_quantized_weights_and_unquantized_activations():
+    from experiments.score_centering.sglang_fp8.models import CheckpointFp8LinearMethod
 
     generator = torch.Generator().manual_seed(8)
     source = torch.randn(32, 16, generator=generator)
-    scale = source.abs().amax(dim=0, keepdim=True) / 448 if per_channel else source.abs().max() / 448
+    scale = source.abs().amax(dim=0, keepdim=True) / 448
     quantized = (source / scale).to(torch.float8_e4m3fn)
-    layer = SimpleNamespace(weight=quantized, weight_scale=scale)
+    layer = SimpleNamespace(weight=quantized, weight_scale=scale.t())
     x = torch.randn(7, 32, generator=generator).to(torch.bfloat16)
     bias = torch.randn(16, generator=generator).to(torch.bfloat16)
-    method = object.__new__(Fp8W8A16LinearMethod)
+    method = CheckpointFp8LinearMethod(None, weight_only=True)
     actual = method.apply(layer, x, bias)
     # Evaluate the represented FP8 matrix in double precision, then apply the
     # specified BF16 rounding before GEMM. No activation quantization is allowed.
@@ -76,6 +75,37 @@ def test_rollout_uses_quantized_weights_and_unquantized_activations(per_channel)
     torch.testing.assert_close(actual, expected, rtol=0, atol=0)
     with pytest.raises(ValueError, match="16-bit activations"):
         method.apply(layer, x.float())
+
+
+def test_published_fp8_tensors_pass_through_unchanged():
+    from experiments.score_centering.sglang_fp8.models import encode_updated_weights
+
+    name = "model.layers.0.self_attn.q_proj.weight"
+    weight = torch.tensor([[1.0, -2.0]], dtype=torch.float8_e4m3fn)
+    # An arbitrary published scale must be retained rather than recalibrated.
+    scale = torch.tensor([[0.0073]], dtype=torch.float32)
+    source = [(name, weight), (name.removesuffix(".weight") + ".weight_scale", scale)]
+    result = list(encode_updated_weights(source, {name}))
+    assert len(result) == len(source)
+    assert all(
+        n == expected_name and tensor is expected
+        for (n, tensor), (expected_name, expected) in zip(result, source)
+    )
+
+
+def test_live_update_scales_are_per_channel_and_zero_rows_stay_finite():
+    from experiments.score_centering.sglang_fp8.models import encode_updated_weights
+
+    name = "model.layers.0.mlp.down_proj.weight"
+    source = torch.tensor([[0, 0, 0], [1, -2, 3], [100, -200, 300]], dtype=torch.bfloat16)
+    bias = torch.zeros(3, dtype=torch.bfloat16)
+    result = dict(encode_updated_weights([(name, source), ("bias", bias)], {name}))
+    scale = result[name.removesuffix(".weight") + ".weight_scale"]
+    assert scale.shape == (3, 1) and scale.dtype == torch.float32
+    assert result["bias"] is bias
+    assert torch.isfinite(scale).all() and (scale > 0).all()
+    assert result[name].dtype == torch.float8_e4m3fn
+    torch.testing.assert_close(result[name].float() * scale, source.float(), rtol=0.05, atol=0)
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="Transformer Engine requires CUDA")

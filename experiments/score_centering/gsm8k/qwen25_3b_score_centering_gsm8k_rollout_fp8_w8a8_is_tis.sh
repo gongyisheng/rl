@@ -24,6 +24,8 @@ precision_variant="rollout_fp8_w8a8"
 run_name="qwen25_3b_score_centering_gsm8k_${precision_variant}_is_${score_centering_is}"
 rollout_run_dir="/data/rollouts/score_centering/gsm8k/${run_name}/$(date -u +%Y%m%dT%H%M%S%N)"
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
 MILES_ROOT=/root/miles
 MODEL_ARGS_LINE="$(python3 "${MILES_ROOT}/miles/utils/external_utils/model_args_utils.py" "qwen2.5-3B")" || exit 1
 read -ra MODEL_ARGS <<< "${MODEL_ARGS_LINE}"
@@ -114,8 +116,10 @@ WANDB_ARGS=(
 )
 
 SGLANG_ARGS=(
-   --sglang-quantization fp8
-   --sglang-load-format flash_rl
+   --sglang-config "${SCRIPT_DIR}/sglang_fp8.yaml"
+   --sglang-quantization compressed-tensors
+   --sglang-load-format auto
+   --sglang-json-model-override-args '{"architectures": ["Qwen2Fp8ForCausalLM"]}'
    --rollout-num-gpus-per-engine 1
    # --sglang-mem-fraction-static 0.7
    --sglang-mem-fraction-static 0.3
@@ -144,13 +148,14 @@ MISC_ARGS=(
 ray start --head --node-ip-address 127.0.0.1 --num-gpus $GPUS_PER_NODE --disable-usage-stats
 
 ray job submit --address="http://127.0.0.1:8265" \
+   --working-dir "${REPO_ROOT}" \
    --runtime-env-json='{
      "env_vars": {
         "PYTHONPATH": "/root/Megatron-LM",
         "CUDA_DEVICE_MAX_CONNECTIONS": "1",
         "NCCL_ALGO": "Ring",
         "SGLANG_TIMEOUT_KEEP_ALIVE": "60",
-        "SGLANG_FORCE_FP8_MARLIN": "0",
+        "SGLANG_EXTERNAL_MODEL_PACKAGE": "experiments.score_centering.sglang_fp8",
         "NVTE_FLASH_ATTN_V2": "1",
         "NVTE_FLASH_ATTN_V3": "0",
         "NVTE_FLASH_ATTN_V4": "0"

@@ -1,0 +1,7 @@
+sglang:
+  - name: default
+    model_path: /root/models/Qwen3-4B-Base-FP8
+    update_weights: true
+    server_groups:
+      - worker_type: regular
+        num_gpus: 1

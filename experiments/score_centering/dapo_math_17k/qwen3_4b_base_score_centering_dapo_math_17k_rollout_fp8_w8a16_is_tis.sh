@@ -134,8 +134,9 @@ WANDB_ARGS=(
 )
 
 SGLANG_ARGS=(
-   --sglang-quantization fp8
-   --sglang-load-format flash_rl
+   --sglang-config "${SCRIPT_DIR}/sglang_fp8.yaml"
+   --sglang-quantization compressed-tensors
+   --sglang-load-format auto
    --sglang-json-model-override-args '{"architectures": ["Qwen3W8A16ForCausalLM"]}'
    --rollout-num-gpus-per-engine 1
    --sglang-mem-fraction-static 0.8
@@ -167,8 +168,7 @@ ray job submit --address="http://127.0.0.1:8265" \
         "CUDA_DEVICE_MAX_CONNECTIONS": "1",
         "NCCL_ALGO": "Ring",
         "SGLANG_TIMEOUT_KEEP_ALIVE": "60",
-        "SGLANG_EXTERNAL_MODEL_PACKAGE": "experiments.score_centering.sglang_w8a16",
-        "SGLANG_FORCE_FP8_MARLIN": "0",
+        "SGLANG_EXTERNAL_MODEL_PACKAGE": "experiments.score_centering.sglang_fp8",
         "NVTE_FLASH_ATTN_V2": "1",
         "NVTE_FLASH_ATTN_V3": "0",
         "NVTE_FLASH_ATTN_V4": "0"
