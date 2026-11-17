@@ -5,4 +5,4 @@ sglang:
     update_weights: true
     server_groups:
       - worker_type: regular
-        num_gpus: 1
+        num_gpus: 6

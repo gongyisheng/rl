@@ -25,7 +25,7 @@ def test_lora_weight_only_forward_and_backward(tmp_path, recompute, projection):
     from megatron.bridge.peft.lora_layers import LoRALinear
     from transformer_engine.debug.pytorch.debug_state import TEDebugState
 
-    train_precision.initialize(SimpleNamespace(save_debug_rollout_data=str(tmp_path / "rollout.pt")))
+    train_precision.initialize(SimpleNamespace(train_precision_log_dir=str(tmp_path / "te_debug")))
     try:
         model = nn.Module()
         model.language_model = nn.Module()

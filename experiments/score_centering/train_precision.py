@@ -1,10 +1,17 @@
 """Miles hooks for W8A16 base weights with BF16 LoRA adapters and GEMMs."""
 
 from pathlib import Path
+from functools import wraps
 import re
+
+from miles.utils.args.schema import A, Arg, BaseConfig
 
 
 CONFIG_PATH = Path(__file__).with_name("train_fp8_w8a16.yaml")
+
+
+class PrecisionConfig(BaseConfig):
+    train_precision_log_dir: A[str, Arg(help="Directory for W8A16 Transformer Engine debug logs.")]
 
 
 def initialize(args):
@@ -19,8 +26,34 @@ def initialize(args):
     debug_api.initialize(
         config_file=str(CONFIG_PATH),
         feature_dirs=[str(Path(transformer_engine.__file__).parent / "debug" / "features")],
-        log_dir=str(Path(args.save_debug_rollout_data).parent / "te_debug"),
+        log_dir=args.train_precision_log_dir,
     )
+    _offload_long_policy_loss()
+
+
+initialize.config_class = PrecisionConfig
+
+
+def _offload_long_policy_loss():
+    """Keep long W8A16 controls within TP2 memory without changing the loss."""
+    import torch
+    from miles.backends.training_utils.loss.hub import losses
+
+    original = losses.policy_loss_function
+    if getattr(original, "_score_centering_cpu_saved_tensors", False):
+        return
+
+    @wraps(original)
+    def policy_loss(args, batch, logits, sum_of_sample_mean):
+        # The normal packed budget is 32K. A longer single response can exceed
+        # it; its full-vocabulary softmax saves otherwise exhaust H200 memory.
+        if logits.numel() // logits.shape[-1] > 32768:
+            with torch.autograd.graph.save_on_cpu(pin_memory=True):
+                return original(args, batch, logits, sum_of_sample_mean)
+        return original(args, batch, logits, sum_of_sample_mean)
+
+    policy_loss._score_centering_cpu_saved_tensors = True
+    losses.policy_loss_function = policy_loss
 
 
 def prepare_model(model):

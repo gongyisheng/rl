@@ -1,21 +1,29 @@
 # Score centering
 
-Test score centering on **DAPO Math 17K with Qwen3.8-27B**, evaluating on AIME 2024. Start from the [task LoRA baseline](../../tasks/dapo_math_17k/qwen3_4b_base_dapo_dapo_math_17k_lora.sh), with rank = alpha = 32, dropout 0, learning rate `1e-5`, and 100 steps per variant. The runner crosses importance weights `none`, `tis` (upper clip 2), and `mis` (retain ratios in [0.5, 5]) with these precision variants:
+Test score centering on **DAPO Math 17K with Qwen3.8-27B**, evaluating on AIME 2024. Start from the [task LoRA baseline](../../tasks/dapo_math_17k/qwen3_4b_base_dapo_dapo_math_17k_lora.sh), with rank = alpha = 32, dropout 0, learning rate `1e-5`, and 100 steps per variant. The runner crosses a GRPO control with score centering disabled and score-centering importance weights `none`, `tis` (upper clip 2), and `mis` (retain ratios in [0.5, 5]) with these precision variants, for **12 sequential runs**:
 
 | Variant | Rollout weights / KV cache | Training |
 | --- | --- | --- |
-| `lora` | BF16 / BF16 | BF16 base and LoRA |
+| `lora` | BF16 / BF16 (`auto`) | BF16 base and LoRA |
 | `lora_rollout_fp8_w8a8` | Official `Qwen/Qwen3.8-27B-FP8` / FP8 E4M3 | BF16 base and LoRA |
-| `lora_train_fp8_w8a16` | BF16 / FP8 E4M3 | E4M3 fake-quantized base weights, BF16 LoRA and GEMMs |
+| `lora_train_fp8_w8a16` | BF16 / BF16 (`auto`) | E4M3 fake-quantized base weights, BF16 LoRA and GEMMs |
 
-Use **two H200 GPUs: one training GPU and one inference GPU**, with `train_async.py --fully-async`. Training uses packed THD batches, tensor parallelism 1, and the BF16 checkpoint at `/root/models/Qwen3.8-27B`. Native FP8 rollout loads `/root/models/Qwen3.8-27B-FP8`. All variants use the **Triton LoRA backend**, FlashAttention 3, 128 concurrent requests, and disabled prefix caching; GDN recurrent states remain FP32.
+Use **eight H200 GPUs: two for training (TP2 with sequence parallelism), six for inference (three TP2 replicas)**, with `train_async.py --fully-async`. Training uses packed THD batches and the BF16 checkpoint at `/root/models/Qwen3.8-27B`. Native FP8 rollout loads `/root/models/Qwen3.8-27B-FP8`. All variants use the **Triton v2 LoRA backend**, FlashAttention 3, and disabled prefix caching; GDN recurrent states remain FP32.
 
-Each rollout has 32 prompts × 8 responses, matching the global batch size of 256. Score centering uses rollout log probabilities and top-128 probabilities with group-mean subtraction and no standard-deviation normalization. Training responses are capped at 16384 tokens; evaluation at 32768, with a 32768-token context. The baseline reward gate, evaluation interval, and LoRA checkpoint interval are retained. Every variant has a distinct W&B group and checkpoint directory under `/data/lora/score_centering/dapo_math_17k/`.
+Inference admits 128 requests per replica, with 8192-token prefill chunks and 384 in-flight samples across the fully async producer. Training packs up to 32768 tokens per microbatch, with full activation recomputation in four-layer segments. Longer individual responses run as single microbatches. W8A16 trainers use expandable CUDA allocations; their GRPO control offloads policy-loss saved tensors to pinned CPU memory above 32K tokens to fit the 64K boundary without changing the loss. The global training batch remains 256 responses. Short benchmarks favored 256 serving slots, but the long fully async workload exhausted the KV pool and repeatedly retracted requests; 128 slots also halves recurrent-state allocation, leaving more memory for KV cache.
 
-The scripts use `/root/miles-score-centering`, combining Miles `2806267d` with the score-centering feature from `286092387`. This retains the current language-only LoRA mappings for attention, GDN, and MLP projections. W8A16 training requires Transformer Engine debug features and `nvidia-dlframework-inspect`; it keeps BF16 weight storage and GEMMs.
+Each rollout has 32 prompts × 8 responses, matching the global batch size of 256. Sampling uses temperature `1`, top-p `0.95`, and top-k `20`. Score centering records the post-filter sampling support and its log probabilities, with a 128-candidate storage limit, group-mean subtraction, and no standard-deviation normalization. Miles replays this support when scoring the training policy. The GRPO controls use the task's policy loss with clip bounds `0.2` / `0.28`, retaining the same reward centering without standard-deviation normalization. `is_none` still enables score centering; it disables only importance weighting. Training and evaluation responses are capped at 65536 tokens, with `--max-seq-len 65536` limiting prompt plus response. The initial BF16 evaluation hit 16.875% truncation at 32K context; 64K context reduced it to 3.75%. The first selected training batch still had 36.3% truncation at a 32K response limit, so training was also increased to the 64K context limit before any optimizer update. The baseline reward gate, evaluation interval, and LoRA checkpoint interval are retained. Every variant has a distinct W&B group in [`osmosis-staging/rl-score-centering-dapo-math-17k`](https://wandb.ai/osmosis-staging/rl-score-centering-dapo-math-17k) and checkpoint directory under `/data/lora/score_centering/dapo_math_17k/`.
+
+The scripts use `/root/miles` (installed revision `8e419cc739`), which includes score centering and language-only LoRA mappings for attention, GDN, and MLP projections. W8A16 training requires Transformer Engine debug features and `nvidia-dlframework-inspect`; it keeps BF16 weight storage and GEMMs. Benchmark scripts and logs belong under `/tmp/score_centering_tuning/`.
+
+All variants use **TITO v1** through eight Miles session-server workers, the `qwen38small` tokenizer family, and matching `qwen3` reasoning / `qwen3_coder` tool parsers. The single-turn [rollout callback](rollout.py) sends the dataset's messages through the session endpoint; the server owns chat templating, generated token IDs, and sampling probabilities. SGLang automatically caps evaluation completions to the remaining 65536-token context.
 
 From the RL repository root, with checkpoints and datasets under `/root/models` and `/root/datasets`:
 
 ```bash
 bash experiments/score_centering/dapo_math_17k/run.sh
 ```
+
+Arguments passed to `run.sh` apply only to its first variant, allowing a restart with an existing `--wandb-run-id` and `--skip-eval-before-train` when no optimizer update has occurred and the initial evaluation is already recorded.
+
+Miles uses W&B shared mode. A reused run with existing history must also have been created in shared mode; writing an initial evaluation in ordinary online mode first makes W&B reject subsequent shared uploads with HTTP 409. A W&B run showing `running` is not sufficient to verify logging: compare its latest `train/step` and `rollout/step` with the local log.
