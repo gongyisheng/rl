@@ -34,18 +34,20 @@ hf download RedHatAI/Qwen2.5-3B-FP8-dynamic --revision bdb5f20b0b7f74df250a8174e
 
 Training W8A16 uses Transformer Engine's `FakeQuant` feature with per-tensor E4M3 scaling on projection weights in both forward and input-gradient GEMMs. Activations, gradients, master parameters, embeddings, norms, and the output head retain their baseline precision. It is a numerical experiment, not a compressed optimizer or a native W8A16 training kernel. The hooks initialize the feature before TE layers are built and name decoder projections before their first forward pass. This requires Transformer Engine's debug features and `nvidia-dlframework-inspect`.
 
-Runs use separate W&B groups and rollout directories and save no checkpoints. DAPO Math 17K retains disk offload with separate scratch directories per variant. Miles automatically enables the FP32 rollout LM head for score centering. Use Miles/SGLang with the score-centering support in the linked guide.
+Runs use W&B projects `rl-score-centering-gsm8k` and `rl-score-centering-dapo-math-17k`, with separate groups and rollout directories, and save no checkpoints. Miles automatically enables the FP32 rollout LM head for score centering. Use Miles/SGLang with the score-centering support in the linked guide.
 
-The scripts use one H200 (140 GiB) per run, with these SGLang settings across all precision and importance-weight variants:
+Each run uses eight H200 GPUs (140 GiB each): two resident data-parallel training GPUs and six independent one-GPU rollout replicas. The scripts use `train_async.py` with `--fully-async` for continuous rollout production, without colocation or training offload. Tensor, pipeline, context, and expert parallelism remain at size 1. Both training and serving use FlashAttention 3. Shared-engine evaluation pauses rollout production; weight synchronization also pauses production briefly. Training memory fit, including Math without disk offload or optimizer streaming, remains unverified.
+
+The following SGLang limits apply per inference GPU across all precision and importance-weight variants:
 
 | Task | Static memory fraction | Maximum running requests | Decode graph maximum batch | Prefill chunk tokens |
 | --- | --- | --- | --- | --- |
 | DAPO Math 17K | 0.8 | 64 | 64 | 8192 |
 | GSM8K | 0.3 | 256 | 256 | 8192 |
 
-DAPO Math 17K uses larger prefill chunks and more concurrent requests for its long responses. GSM8K reserves less memory for the rollout server to leave room for its resident trainer. The scripts also select PyTorch's bundled NCCL under `/opt/sglang`; the system NCCL on this machine lacks the `ncclCommResume` symbol required by PyTorch.
+DAPO Math 17K retains its larger prefill chunks and concurrent-request limit for long responses. GSM8K retains its static memory fraction of `0.3` per inference GPU. The scripts also select PyTorch's bundled NCCL under `/opt/sglang`; the system NCCL on this machine lacks the `ncclCommResume` symbol required by PyTorch.
 
-Measured BF16 serving throughput on this host, in generated tokens per second:
+Historical one-GPU BF16 serving throughput on this host, in generated tokens per second:
 
 | Task | Requests × prompt tokens × generated tokens | Before | Tuned |
 | --- | --- | --- | --- |
@@ -54,11 +56,11 @@ Measured BF16 serving throughput on this host, in generated tokens per second:
 | GSM8K | 256 × 512 × 128 | 7688 | 7640 |
 | GSM8K | 256 × 2048 × 256 | 5656 | 5674 |
 
-These are medians of three repetitions after warmup, using synthetic token inputs, the FP32 LM head, and top-128 log probabilities, including HTTP response transfer. Each server used one GPU and measurements ran sequentially after both servers were ready. GSM8K throughput stayed within 1% while its static memory reservation fell by about 14 GiB. These are inference measurements; full RL runs and maximum-length Math generations have not been tested.
+These are medians of three repetitions after warmup, using synthetic token inputs, the FP32 LM head, and top-128 log probabilities, including HTTP response transfer. Each server used one GPU and measurements ran sequentially after both servers were ready. GSM8K throughput stayed within 1% while its static memory reservation fell by about 14 GiB. These historical inference measurements predate the eight-GPU fully async configuration; the new full RL configuration and maximum-length Math generations have not been tested.
 
 SGLang `3a93821` also needs [this patch](sglang_fp8_activation_dtype.patch), applied on this machine. Its Qwen attention/MLP paths otherwise cast BF16 activations directly to FP8 weight storage without a scale, breaking FP8 rollouts. The patch preserves activation dtypes until the projection's quantization method handles them. Apply it to another checkout of that revision with `git -C /path/to/sglang apply /path/to/rl/experiments/score_centering/sglang_fp8_activation_dtype.patch`.
 
-Validation passed for all 20 shell scripts (`bash -n`), six precision tests, and two published-checkpoint integration tests. The checkpoint tests compare the loaded FP8 bytes and scale values to the downloaded files, then verify repeated partial Q-projection updates preserve K/V and parameter addresses. FP8 KV-cache serving checks passed for both models with W8A8 weights/activations and with BF16 weights/activations (the QAT variants' inference configuration). These checks cover CUDA graph capture, two live weight updates per configuration, and generation with finite top-128 log probabilities. The two native Qwen regression cases reject the unpatched SGLang code. Full RL training was not launched.
+The updated configuration passes `bash -n` for all 20 shell scripts and static GPU-allocation, async, attention, and FP8 YAML checks. Earlier precision validation passed six precision tests and two published-checkpoint integration tests. The checkpoint tests compare the loaded FP8 bytes and scale values to the downloaded files, then verify repeated partial Q-projection updates preserve K/V and parameter addresses. FP8 KV-cache serving checks passed for both models with W8A8 weights/activations and with BF16 weights/activations (the QAT variants' inference configuration). These checks cover CUDA graph capture, two live weight updates per configuration, and generation with finite top-128 log probabilities. The two native Qwen regression cases reject the unpatched SGLang code. The eight-GPU fully async RL configuration has not been launched.
 
 The original model checkpoints are cached under `/root/models/{Qwen3-4B-Base,Qwen2.5-3B}`. Training and evaluation data are cached under `/root/datasets/{dapo-math-17k,gsm8k,aime-2024}`. Model tensor indexes, tokenizers, and all dataset rows were checked after downloading.
 

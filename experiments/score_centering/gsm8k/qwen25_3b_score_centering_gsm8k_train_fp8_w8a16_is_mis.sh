@@ -1,9 +1,9 @@
 #!/bin/bash
 export FLASHINFER_DISABLE_VERSION_CHECK=1
-export GPUS_PER_NODE=1
+export GPUS_PER_NODE=8
 # will prevent ray from buffering stdout/stderr
 export PYTHONUNBUFFERED=1
-export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}
 # Use the NCCL bundled with this machine's PyTorch build.
 export LD_LIBRARY_PATH="/opt/sglang/lib/python3.12/site-packages/nvidia/nccl/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 
@@ -37,6 +37,7 @@ CKPT_ARGS=(
 )
 
 ROLLOUT_ARGS=(
+   --fully-async
    --save-debug-rollout-data "${rollout_run_dir}/rollout_{rollout_id}.pt"
    --prompt-data /root/datasets/gsm8k/train.parquet
    --input-key messages
@@ -81,9 +82,8 @@ PERF_ARGS=(
 
    --qkv-format thd
    --use-dynamic-batch-size
-   --max-tokens-per-gpu 4096
+   --max-tokens-per-gpu 40960
 
-   --no-offload-train
 )
 
 GRPO_ARGS=(
@@ -114,13 +114,14 @@ OPTIMIZER_ARGS=(
 WANDB_ARGS=(
    --use-wandb
    --wandb-host https://wandb.ai/
-   --wandb-project rl-gsm8k
+   --wandb-project rl-score-centering-gsm8k
    --wandb-group "${run_name}"
    --disable-wandb-random-suffix
 )
 
 SGLANG_ARGS=(
    --rollout-num-gpus-per-engine 1
+   --sglang-attention-backend fa3
    --sglang-kv-cache-dtype fp8_e4m3
    # --sglang-mem-fraction-static 0.7
    --sglang-mem-fraction-static 0.3
@@ -129,7 +130,6 @@ SGLANG_ARGS=(
    --sglang-chunked-prefill-size 8192
 
    # --sglang-enable-deterministic-inference
-   # --sglang-attention-backend flashinfer
    # --deterministic-mode
 )
 
@@ -157,15 +157,16 @@ ray job submit --address="http://127.0.0.1:8265" \
         "CUDA_DEVICE_MAX_CONNECTIONS": "1",
         "NCCL_ALGO": "Ring",
         "SGLANG_TIMEOUT_KEEP_ALIVE": "60",
-        "NVTE_FLASH_ATTN_V2": "1",
-        "NVTE_FLASH_ATTN_V3": "0",
+        "NVTE_FLASH_ATTN_V2": "0",
+        "NVTE_FLASH_ATTN_V3": "1",
         "NVTE_FLASH_ATTN_V4": "0"
      }
    }' \
-   -- python3 /root/miles/train.py \
+   -- python3 /root/miles/train_async.py \
    --actor-num-nodes 1 \
-   --actor-num-gpus-per-node $GPUS_PER_NODE \
-   --colocate \
+   --actor-num-gpus-per-node 2 \
+   --num-gpus-per-node $GPUS_PER_NODE \
+   --rollout-num-gpus 6 \
    --calculate-per-token-loss \
    "${MODEL_ARGS[@]}" \
    "${CKPT_ARGS[@]}" \

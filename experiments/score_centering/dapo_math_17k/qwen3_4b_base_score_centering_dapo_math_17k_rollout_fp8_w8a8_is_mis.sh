@@ -1,9 +1,9 @@
 #!/bin/bash
 export FLASHINFER_DISABLE_VERSION_CHECK=1
-export GPUS_PER_NODE=1
+export GPUS_PER_NODE=8
 # will prevent ray from buffering stdout/stderr
 export PYTHONUNBUFFERED=1
-export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}
 # Use the NCCL bundled with this machine's PyTorch build.
 export LD_LIBRARY_PATH="/opt/sglang/lib/python3.12/site-packages/nvidia/nccl/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 
@@ -23,8 +23,6 @@ score_centering_is=mis
 precision_variant="rollout_fp8_w8a8"
 run_name="qwen3_4b_base_score_centering_dapo_math_17k_${precision_variant}_is_${score_centering_is}"
 rollout_run_dir="/data/rollouts/score_centering/dapo_math_17k/${run_name}/$(date -u +%Y%m%dT%H%M%S%N)"
-# Reuse scratch after process cleanup so Miles can reclaim files from interrupted runs.
-offload_run_dir="/data/offload/score_centering/dapo_math_17k/${run_name}/current"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
@@ -39,6 +37,7 @@ CKPT_ARGS=(
 )
 
 ROLLOUT_ARGS=(
+   --fully-async
    --save-debug-rollout-data "${rollout_run_dir}/rollout_{rollout_id}.pt"
    --prompt-data /root/datasets/dapo-math-17k/dapo-math-17k.jsonl
    --input-key prompt
@@ -84,7 +83,7 @@ PERF_ARGS=(
 
    --qkv-format thd
    --use-dynamic-batch-size
-   --max-tokens-per-gpu 8192
+   --max-tokens-per-gpu 40960
    --log-probs-max-tokens-per-gpu 8192
    # Bound vocabulary-sized temporary tensors for long responses.
    --log-probs-chunk-size 512
@@ -93,12 +92,6 @@ PERF_ARGS=(
    --recompute-method uniform
    --recompute-num-layers 1
 
-   # Leave GPU memory for long rollouts without a full host-RAM copy.
-   --offload-train
-   --offload-train-target disk
-   --offload-train-disk-dir "${offload_run_dir}"
-   # Keep Adam state off GPU after the first update as well.
-   --stream-optimizer-state-to-disk
 )
 
 GRPO_ARGS=(
@@ -129,7 +122,7 @@ OPTIMIZER_ARGS=(
 WANDB_ARGS=(
    --use-wandb
    --wandb-host https://wandb.ai/
-   --wandb-project rl-dapo-math-17k
+   --wandb-project rl-score-centering-dapo-math-17k
    --wandb-group "${run_name}"
    --disable-wandb-random-suffix
 )
@@ -140,6 +133,7 @@ SGLANG_ARGS=(
    --sglang-load-format auto
    --sglang-json-model-override-args '{"architectures": ["Qwen3Fp8ForCausalLM"]}'
    --rollout-num-gpus-per-engine 1
+   --sglang-attention-backend fa3
    --sglang-kv-cache-dtype fp8_e4m3
    --sglang-mem-fraction-static 0.8
    --sglang-max-running-requests 64
@@ -172,15 +166,16 @@ ray job submit --address="http://127.0.0.1:8265" \
         "NCCL_ALGO": "Ring",
         "SGLANG_TIMEOUT_KEEP_ALIVE": "60",
         "SGLANG_EXTERNAL_MODEL_PACKAGE": "experiments.score_centering.sglang_fp8",
-        "NVTE_FLASH_ATTN_V2": "1",
-        "NVTE_FLASH_ATTN_V3": "0",
+        "NVTE_FLASH_ATTN_V2": "0",
+        "NVTE_FLASH_ATTN_V3": "1",
         "NVTE_FLASH_ATTN_V4": "0"
      }
    }' \
-   -- python3 /root/miles/train.py \
+   -- python3 /root/miles/train_async.py \
    --actor-num-nodes 1 \
-   --actor-num-gpus-per-node $GPUS_PER_NODE \
-   --colocate \
+   --actor-num-gpus-per-node 2 \
+   --num-gpus-per-node $GPUS_PER_NODE \
+   --rollout-num-gpus 6 \
    --calculate-per-token-loss \
    "${MODEL_ARGS[@]}" \
    "${CKPT_ARGS[@]}" \
