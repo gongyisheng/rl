@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Usage: nohup bash experiments/drgrpo/dapo_math_17k/run.sh > logs/drgrpo_dapo_math_17k.log 2>&1 &
+export WANDB_CONSOLE=off
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

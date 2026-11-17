@@ -23,6 +23,8 @@ wandb login
 
 ## Training
 
+Training sets `WANDB_CONSOLE=off` to disable console capture while W&B metric logging remains enabled.
+
 ### Qwen2.5 3B
 
 ```bash

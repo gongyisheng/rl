@@ -1,5 +1,6 @@
 #!/bin/bash
 # Usage: nohup bash experiments/length_control/gsm8k/run.sh > logs/length_control_gsm8k.log 2>&1 &
+export WANDB_CONSOLE=off
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"

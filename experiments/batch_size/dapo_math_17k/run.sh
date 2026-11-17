@@ -1,5 +1,6 @@
 #!/bin/bash
 # Usage: nohup bash experiments/batch_size/dapo_math_17k/run.sh > logs/batch_size_dapo_math_17k.log 2>&1 &
+export WANDB_CONSOLE=off
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -1,5 +1,6 @@
 #!/bin/bash
 # Usage: nohup bash experiments/lora_batch_size/gsm8k/run.sh > logs/lora_batch_size_gsm8k.log 2>&1 &
+export WANDB_CONSOLE=off
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
