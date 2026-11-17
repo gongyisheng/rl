@@ -1,7 +1,8 @@
 sglang:
   - name: default
-    model_path: /root/models/Qwen3-4B-Base-FP8
+    model_path: /root/models/Qwen3.8-27B-FP8
+    # Keep adapter updates enabled while the quantized base stays frozen.
     update_weights: true
     server_groups:
       - worker_type: regular
-        num_gpus: 6
+        num_gpus: 1

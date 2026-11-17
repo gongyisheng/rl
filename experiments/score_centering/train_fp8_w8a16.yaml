@@ -1,7 +1,10 @@
 weight_only_fp8:
   enabled: true
   layers:
-    layer_name_regex_pattern: 'decoder\.layers\.\d+\.(self_attention\.linear_(qkv|proj)|mlp\.linear_fc[12])$'
+    # Match language base projections, including inside Bridge LoRA wrappers.
+    # GDN in_proj is fused Q/K/V/Z/B/A; all its rows share this precision recipe.
+    # Adapter matrices, vision/MTP layers, norms, and the LM head do not match.
+    layer_name_regex_pattern: 'language_model\.decoder\.layers\.\d+\.(self_attention\.(linear_(qkv|proj)|in_proj|out_proj)|mlp\.linear_fc[12])(\.to_wrap)?$'
   transformer_engine:
     FakeQuant:
       enabled: true
