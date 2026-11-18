@@ -19,6 +19,8 @@ set -ex
 
 num_steps=100
 learning_rate=1e-5
+response_length=8192
+eval_response_length=32768
 run_name="qwen38_27b_score_centering_dapo_math_17k_lora_is_mis"
 run_timestamp="$(date -u +%Y%m%dT%H%M%S%N)"
 rollout_run_dir="/data/rollouts/score_centering/dapo_math_17k/${run_name}/${run_timestamp}"
@@ -71,8 +73,8 @@ ROLLOUT_ARGS=(
    --num-rollout "${num_steps}"
    --rollout-batch-size 32
    --n-samples-per-prompt 8
-   --rollout-max-response-len 65536
-   # Bound prompt plus response to the shared 64K context.
+   --rollout-max-response-len "${response_length}"
+   # Leave room for the prompt as well as the 32K evaluation response.
    --max-seq-len 65536
    --rollout-temperature 1
    --rollout-top-p 0.95
@@ -88,7 +90,7 @@ EVAL_ARGS=(
    --eval-interval 10
    --eval-prompt-data aime-2024 /root/datasets/aime-2024/aime-2024.jsonl
    --n-samples-per-eval-prompt 16
-   --eval-max-response-len 65536
+   --eval-max-response-len "${eval_response_length}"
    --eval-temperature 1
 )
 
