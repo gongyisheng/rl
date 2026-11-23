@@ -6,7 +6,8 @@ weight_only_fp8:
     # Adapter matrices, vision/MTP layers, norms, and the LM head do not match.
     layer_name_regex_pattern: 'language_model\.decoder\.layers\.\d+\.(self_attention\.(linear_(qkv|proj)|in_proj|out_proj)|mlp\.linear_fc[12])(\.to_wrap)?$'
   transformer_engine:
-    FakeQuant:
+    # Share one rounded copy between fprop/dgrad and all microbatches in a step.
+    FrozenWeightFakeQuant:
       enabled: true
       quant_format: FP8E4M3
       gemms: [fprop, dgrad]

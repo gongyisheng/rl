@@ -116,10 +116,10 @@ PERF_ARGS=(
    --max-tokens-per-gpu 32768
    # Bound vocabulary-sized temporary tensors for long responses.
    --log-probs-chunk-size 512
-   # Activation checkpointing for long responses.
+   # Shared rounded weights leave room to avoid recomputing eight of 64 layers.
    --recompute-granularity full
-   --recompute-method uniform
-   --recompute-num-layers 4
+   --recompute-method block
+   --recompute-num-layers 56
 )
 
 GRPO_ARGS=(

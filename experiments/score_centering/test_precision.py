@@ -13,6 +13,65 @@ from experiments.score_centering import train_precision
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="Transformer Engine requires CUDA")
+def test_frozen_weight_cache_reuses_rounding_and_refreshes_changed_weights(tmp_path, monkeypatch):
+    import nvdlfw_inspect.api as debug_api
+    from nvdlfw_inspect.registry import Registry
+    from transformer_engine.debug.pytorch.debug_state import TEDebugState
+
+    train_precision.initialize(SimpleNamespace(train_precision_log_dir=str(tmp_path / "te_debug")))
+    try:
+        feature = Registry.data["transformer_engine"].features["FrozenWeightFakeQuant"]
+        parent = type(feature).__mro__[1]
+        original = parent.modify_tensor
+        calls = []
+
+        def counted(self, *args, **kwargs):
+            calls.append(1)
+            return original(self, *args, **kwargs)
+
+        monkeypatch.setattr(parent, "modify_tensor", counted)
+        weight = torch.randn(128, 128, device="cuda", dtype=torch.bfloat16)
+
+        def rounded(gemm="fprop", iteration=1, out=None):
+            return feature.modify_tensor(
+                {"quant_format": "FP8E4M3"}, "projection", gemm, "weight",
+                weight, iteration, None, out=out, dtype=torch.bfloat16,
+            )
+
+        first = rounded()
+        assert rounded("dgrad") is first
+        assert rounded() is first
+        destination = torch.empty_like(weight)
+        assert rounded(out=destination) is None
+        torch.testing.assert_close(destination, first, rtol=0, atol=0)
+        assert len(calls) == 1
+
+        weight.mul_(1.13)
+        changed = rounded()
+        assert len(calls) == 2
+        assert not torch.equal(changed, first)
+
+        # Checkpoint/backup restores can bypass PyTorch's version counter.
+        weight.data.mul_(1.17)
+        restored = rounded(iteration=2)
+        assert len(calls) == 3
+        scale = 448 / weight.float().abs().max()
+        expected = ((weight.float() * scale).to(torch.float8_e4m3fn).float() / scale).to(weight.dtype)
+        torch.testing.assert_close(restored, expected, rtol=0.008, atol=0.001)
+
+        # Offload/reload can replace storage while preserving the Parameter.
+        weight.data = weight.data.clone().mul_(0.7)
+        rounded(iteration=2)
+        assert len(calls) == 4
+        weight.requires_grad_(True)
+        with pytest.raises(ValueError, match="frozen base weights"):
+            rounded(iteration=2)
+    finally:
+        debug_api.end_debug()
+        TEDebugState._reset()
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="Transformer Engine requires CUDA")
 @pytest.mark.parametrize("recompute", [False, True])
 @pytest.mark.parametrize(
     "projection",

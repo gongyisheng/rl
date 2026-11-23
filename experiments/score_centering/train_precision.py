@@ -25,7 +25,10 @@ def initialize(args):
         raise ValueError("W8A16 fake quantization requires high-precision base weights")
     debug_api.initialize(
         config_file=str(CONFIG_PATH),
-        feature_dirs=[str(Path(transformer_engine.__file__).parent / "debug" / "features")],
+        feature_dirs=[
+            str(Path(transformer_engine.__file__).parent / "debug" / "features"),
+            str(Path(__file__).with_name("te_features")),
+        ],
         log_dir=args.train_precision_log_dir,
     )
     _offload_long_policy_loss()
@@ -81,6 +84,8 @@ def prepare_model(model):
                 raise TypeError(f"W8A16 requires a Transformer Engine base projection: {name}")
             if module.weight.dtype != torch.bfloat16:
                 raise ValueError(f"W8A16 requires BF16 base weights: {name}")
+            if module.weight.requires_grad:
+                raise ValueError(f"W8A16 weight caching requires frozen base weights: {name}")
         chunk._score_centering_precision_ready = True
 
 
