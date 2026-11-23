@@ -7,12 +7,16 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # Optional arguments apply only to the first variant, for restarting that run.
 first_run_args=("$@")
 
-for precision_variant in baseline rollout_fp8_w8a8 train_fp8_w8a16; do
+for precision_variant in baseline rollout_fp8_w8a8 train_fp8_w8a16 train_fp8_w8a16_rollout_fp8_w8a8; do
    variant_suffix=""
    if [[ "${precision_variant}" != baseline ]]; then
       variant_suffix="_${precision_variant}"
    fi
-   for score_centering_is in off none tis mis; do
+   score_centering_modes=(off none tis mis)
+   if [[ "${precision_variant}" == train_fp8_w8a16_rollout_fp8_w8a8 ]]; then
+      score_centering_modes=(none tis mis)
+   fi
+   for score_centering_is in "${score_centering_modes[@]}"; do
       algorithm=score_centering
       is_suffix="_is_${score_centering_is}"
       if [[ "${score_centering_is}" == off ]]; then

@@ -12,16 +12,16 @@ The 8K workload generated **2,097,152 output tokens** in 367.04s before tuning a
 
 ## Configuration
 
-All four `rollout_fp8_w8a8` variants and all four `train_fp8_w8a16` variants share these rollout settings:
+All four `lora_rollout_fp8_w8a8` variants and the three combined `lora_train_fp8_w8a16_rollout_fp8_w8a8` variants share these rollout settings:
 
 - Explicit `deep_gemm` FP8 W8A8 linear kernels and `fp8_e4m3` KV cache, with `SGLANG_FORCE_FP8_MARLIN=0` and DeepGEMM enabled.
 - 256 serving requests, recurrent-state slots, and decode CUDA graph capacity per replica, up from 128. One shell variable controls all three and the production async producer limit of 768 samples across three replicas.
 - Full response-budget admission: initial and minimum new-token ratios of 1, with the estimation clip derived from the 32K evaluation response cap. This prevents the default 4K estimate and its decay from overcommitting long responses.
 - On-demand DeepGEMM compilation during warm-up (`SGLANG_JIT_DEEPGEMM_PRECOMPILE=0`). The timed baseline also used this setting; no startup-speed claim is made.
 
-The 8192-token prefill chunk, 0.85 static memory fraction, FA3 attention, Triton v2 LoRA, FP32 recurrent states, 256-response global training batch, and learning/loss settings are unchanged. The `rollout_fp8_w8a8` variants retain BF16 training; `train_fp8_w8a16` retains its E4M3 weight fake quantization, BF16 LoRA and GEMMs, precision hooks, and expandable training allocations. The official rollout checkpoint retains its unquantized exclusions, including sensitive GDN projections and the output head; LoRA computation remains BF16. W8A8 describes the quantized base linear operations.
+The 8192-token prefill chunk, 0.85 static memory fraction, FA3 attention, Triton v2 LoRA, FP32 recurrent states, 256-response global training batch, and learning/loss settings are unchanged. The `lora_rollout_fp8_w8a8` variants retain BF16 training; the combined variants retain the W8A16 trainer's E4M3 weight fake quantization, BF16 LoRA and GEMMs, precision hooks, and expandable training allocations. The official rollout checkpoint retains its unquantized exclusions, including sensitive GDN projections and the output head; LoRA computation remains BF16. W8A8 describes the quantized base linear operations.
 
-The W8A16 variants now reuse the benchmarked FP8 serving configuration. The timings above compare the original and tuned FP8 serving settings; the former BF16 rollout configuration of the W8A16 variants and their full training workload were not benchmarked here.
+The three combined variants reuse the benchmarked FP8 serving configuration. The four original `lora_train_fp8_w8a16` variants have been restored to BF16 rollout weights and KV cache, with 128 requests per replica and 384 in-flight samples. The timings above compare the original and tuned FP8 serving settings; BF16 rollout and the combined variants' full training workload were not benchmarked here.
 
 ## Method and validation
 
@@ -31,7 +31,7 @@ Measurements use the native SGLang HTTP endpoint with pretokenized prompts, samp
 
 Both 8K runs completed with finite sampled-token log probabilities and no KV retractions. The tuned engine allocated **5,545,027 FP8 KV tokens**. A separate 16-second probe submitted 256 requests with 32K response budgets: it admitted at most **168** concurrent requests and queued up to **88**, with no reported retractions. The probe requests were then aborted; it was an admission check, not a completed AIME evaluation.
 
-Decode CUDA traces contain Hopper `sm90_fp8_gemm` kernels, FP8 E4M3 activation quantizers, and FA3 `float_e4m3_t` attention kernels, with no Marlin kernels. Every modified shell script passed `bash -n`; all eight expanded launch configurations and Ray environment JSON objects passed the installed Miles/Megatron argument parser without launching training, including the W8A16 precision hooks. The full eight-GPU asynchronous RL workload remains to be measured on that hardware.
+Decode CUDA traces contain Hopper `sm90_fp8_gemm` kernels, FP8 E4M3 activation quantizers, and FA3 `float_e4m3_t` attention kernels, with no Marlin kernels. Every new or modified shell script passed `bash -n`. The combined-precision and restored train-only launch configurations and Ray environment JSON objects passed the installed Miles/Megatron argument parser without launching training, including the W8A16 precision hooks. The full eight-GPU asynchronous RL workload remains to be measured on that hardware.
 
 The score-centering storage limit remains **128 candidates**. FlashInfer retains ties at the top-k boundary: the long baseline observed support sets as large as 27 despite top-k 20. Reducing storage to 20 would reject valid rollout samples.
 

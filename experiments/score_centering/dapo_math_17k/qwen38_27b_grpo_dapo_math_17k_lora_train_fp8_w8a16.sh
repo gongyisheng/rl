@@ -21,7 +21,6 @@ num_steps=100
 learning_rate=1e-5
 response_length=8192
 eval_response_length=32768
-rollout_requests_per_engine=256
 run_name="qwen38_27b_grpo_dapo_math_17k_lora_train_fp8_w8a16"
 run_timestamp="$(date -u +%Y%m%dT%H%M%S%N)"
 rollout_run_dir="/data/rollouts/score_centering/dapo_math_17k/${run_name}/${run_timestamp}"
@@ -54,7 +53,7 @@ LORA_ARGS=(
 ROLLOUT_ARGS=(
    --fully-async
    # Keep three TP2 rollout replicas busy without changing the training batch.
-   --async-max-concurrent-samples "$((3 * rollout_requests_per_engine))"
+   --async-max-concurrent-samples 384
    --use-session-server v1
    --session-server-workers 8
    --tito-model qwen38small
@@ -156,12 +155,7 @@ WANDB_ARGS=(
 )
 
 SGLANG_ARGS=(
-   --sglang-config "${SCRIPT_DIR}/sglang_fp8.yaml"
-   --sglang-quantization fp8
-   # Native FP8 weights and activations on Hopper, including decode.
-   --sglang-fp8-gemm-backend deep_gemm
-   --sglang-load-format auto
-   --sglang-kv-cache-dtype fp8_e4m3
+   --sglang-kv-cache-dtype auto
    --rollout-num-gpus-per-engine 2
    # Qwen3.8 uses the Qwen3.5 conditional-generation architecture.
    --sglang-json-model-override-args '{"language_model_only": true}'
@@ -178,9 +172,9 @@ SGLANG_ARGS=(
    # Avoid five recurrent-state slots per request for prefix caching.
    --sglang-disable-radix-cache
    --sglang-mamba-ssm-dtype float32
-   --sglang-max-mamba-cache-size "${rollout_requests_per_engine}"
-   --sglang-max-running-requests "${rollout_requests_per_engine}"
-   --sglang-cuda-graph-max-bs-decode "${rollout_requests_per_engine}"
+   --sglang-max-mamba-cache-size 128
+   --sglang-max-running-requests 128
+   --sglang-cuda-graph-max-bs-decode 128
    --sglang-chunked-prefill-size 8192
 )
 
@@ -196,8 +190,6 @@ MISC_ARGS=(
 )
 
 
-# Reserve each request's full response budget, including 32K evaluation, to avoid KV retractions.
-# DeepGEMM compiles the shapes used by CUDA-graph warmup instead of precompiling every token count.
 # launch the master node of ray in container
 ray start --head --node-ip-address 127.0.0.1 --num-gpus $GPUS_PER_NODE --disable-usage-stats
 
@@ -211,12 +203,6 @@ ray job submit --address="http://127.0.0.1:8265" \
         "CUDA_DEVICE_MAX_CONNECTIONS": "1",
         "NCCL_ALGO": "Ring",
         "SGLANG_TIMEOUT_KEEP_ALIVE": "60",
-        "SGLANG_FORCE_FP8_MARLIN": "0",
-        "SGLANG_ENABLE_JIT_DEEPGEMM": "1",
-        "SGLANG_JIT_DEEPGEMM_PRECOMPILE": "0",
-        "SGLANG_INIT_NEW_TOKEN_RATIO": "1.0",
-        "SGLANG_MIN_NEW_TOKEN_RATIO_FACTOR": "1.0",
-        "SGLANG_CLIP_MAX_NEW_TOKENS_ESTIMATION": "'"${eval_response_length}"'",
         "NVTE_FLASH_ATTN_V2": "0",
         "NVTE_FLASH_ATTN_V3": "1",
         "NVTE_FLASH_ATTN_V4": "0"
