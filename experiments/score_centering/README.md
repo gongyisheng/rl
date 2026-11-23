@@ -19,7 +19,7 @@ Each rollout has 32 prompts × 8 responses, matching the global batch size of 25
 
 The scripts use `/root/miles` (installed revision `8e419cc739`), which includes score centering and language-only LoRA mappings for attention, GDN, and MLP projections. W8A16 training requires Transformer Engine debug features and `nvidia-dlframework-inspect`; it keeps BF16 weight storage and GEMMs. Benchmark scripts and logs belong under `/tmp/score_centering_tuning/`.
 
-All variants use **TITO v1** through eight Miles session-server workers, the `qwen38small` tokenizer family, and matching `qwen3` reasoning / `qwen3_coder` tool parsers. The single-turn [rollout callback](rollout.py) sends the dataset's messages through the session endpoint; the server owns chat templating, generated token IDs, and sampling probabilities. SGLang automatically caps evaluation completions to the remaining 65536-token context.
+All variants use **TITO v1** through eight Miles session-server workers, the `qwen38small` tokenizer family, and matching `qwen3` reasoning / `qwen3_coder` tool parsers. The single-turn [rollout callback](rollout.py) sends the dataset's messages through the session endpoint; the server owns chat templating, generated token IDs, and sampling probabilities.
 
 From the RL repository root, with checkpoints and datasets under `/root/models` and `/root/datasets`:
 

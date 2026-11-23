@@ -167,8 +167,6 @@ SGLANG_ARGS=(
    # Qwen3.8 uses the Qwen3.5 conditional-generation architecture.
    --sglang-json-model-override-args '{"language_model_only": true}'
    --sglang-context-length 65536
-   # TITO chat requests also cap evaluation completions to the remaining context.
-   --sglang-allow-auto-truncate
    --sglang-reasoning-parser qwen3
    --sglang-tool-call-parser qwen3_coder
    --sglang-lora-backend triton_v2
