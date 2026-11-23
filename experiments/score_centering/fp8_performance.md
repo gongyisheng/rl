@@ -2,6 +2,8 @@
 
 Measured on 2026-11-23 on **two NVLink-connected H200 GPUs**, representing one TP2 replica in the production eight-GPU layout (two training GPUs and three TP2 rollout replicas).
 
+The first table compares serving configurations that **both already use FP8 KV cache**. Its gains do not measure the benefit of adding FP8 KV cache to W8A8.
+
 | Workload | Original tokens/s | Tuned tokens/s | Throughput gain |
 | --- | ---: | ---: | ---: |
 | Score centering, 1,024 output tokens | 6,079 | 7,495 | +23.3% |
@@ -9,6 +11,30 @@ Measured on 2026-11-23 on **two NVLink-connected H200 GPUs**, representing one T
 | Score centering, 8,192 output tokens | 5,714 | 6,857 | +20.0% |
 
 The 8K workload generated **2,097,152 output tokens** in 367.04s before tuning and 305.85s after tuning. These measurements cover serving on one replica. Full RL throughput also depends on training, reward calculation, and synchronization.
+
+## Adding FP8 KV cache to W8A8
+
+A separate comparison on the same hardware holds the tuned W8A8 serving configuration fixed and changes only `--kv-cache-dtype bfloat16` versus `fp8_e4m3`. Both use DeepGEMM, FA3, the same rank-32 adapter, and 256 concurrent requests. The launch environments are identical. Each workload has **two timed repetitions per cache dtype**, with throughput calculated as total output tokens divided by total wall time.
+
+| Workload | W8A8 + BF16 KV tokens/s | W8A8 + FP8 KV tokens/s | Throughput gain |
+| --- | ---: | ---: | ---: |
+| Score centering, 1,024 output tokens | 7,451 | 7,500 | +0.7% |
+| GRPO, 1,024 output tokens | 7,456 | 7,518 | +0.8% |
+| Score centering, 8,192 output tokens | 6,291 | 6,853 | **+8.9%** |
+
+The two 8K trials took **333.14 / 333.58 seconds with BF16 KV** and **306.03 / 306.04 seconds with FP8 KV**. FP8 KV cache provides a useful speed gain at the production 8K response cap; the measured change at 1K is below 1%. The 8K batch fits in both caches, with all 256 requests active, so its gain does not depend on admitting more requests.
+
+| Capacity at the same 0.85 static memory fraction | BF16 KV | FP8 KV |
+| --- | ---: | ---: |
+| Allocated KV tokens per TP2 replica | 2,772,513 | 5,545,027 |
+| Maximum active requests in the 32K-budget admission probe | 84 | 168 |
+| Maximum queued requests out of 256 submitted | 172 | 88 |
+
+FP8 halves the KV storage per token, letting the same cache memory hold twice as many tokens. SGLang uses that saving to increase capacity; total reserved GPU memory is not halved. The model has 16 full-attention layers and 48 linear-attention layers, whose GDN states remain FP32. Changing KV dtype also selects FA3's corresponding attention precision; W8A8 linear kernels stay unchanged.
+
+The prompt set, fixed output lengths, sampling, support recording, warm-up exclusions, and HTTP timing boundary match the method below. Every timed request completed with the expected token count and finite sampled-token log probabilities; support widths stayed within the existing 128-candidate limit. Neither server reported KV retractions. Each 32K admission probe lasted 16 seconds before its requests were aborted: it measures admission capacity, not completed 32K throughput. Answer accuracy, RL convergence, and end-to-end training throughput were not measured in this comparison.
+
+The current W8A8 training scripts already enable FP8 KV cache and remain unchanged. Exact commands, both server logs, raw timings, admission readings, and the validated `summary.json` are under `/tmp/score_centering_tuning/kv_cache_ablation/`. Its `run.py` reproduces the serving comparison; `summarize.py` checks that only KV dtype differs and aggregates the results.
 
 ## Configuration
 
