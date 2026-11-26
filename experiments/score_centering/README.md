@@ -1,6 +1,6 @@
 # Score centering
 
-Test score centering on **DAPO Math 17K with Qwen3.8-27B**, evaluating on AIME 2024. Start from the [task LoRA baseline](../../tasks/dapo_math_17k/qwen3_4b_base_dapo_dapo_math_17k_lora.sh), with rank = alpha = 32, dropout 0, learning rate `1e-5`, and 100 steps per variant. The first three precision variants each include a GRPO control with score centering disabled and score-centering importance weights `none`, `tis` (upper clip 2), and `mis` (retain ratios in [0.5, 5]). The combined training/rollout FP8 variant adds three score-centering runs (`none`, `tis`, `mis`), for **15 sequential runs**:
+Test score centering on **DAPO Math 17K with Qwen3.8-27B**, evaluating on AIME 2024. Start from the [task LoRA baseline](../../tasks/dapo_math_17k/qwen3_4b_base_dapo_dapo_math_17k_lora.sh), with rank = alpha = 32, dropout 0, learning rate `1e-5`, and 100 steps per variant. The first three precision variants each include a GRPO control with score centering disabled and score-centering importance weights `none`, `tis` (upper clip 2), and `mis` (retain ratios in [0.5, 5]). The combined training/rollout FP8 variant adds three score-centering runs (`none`, `tis`, `mis`), for **15 sequential runs**. `run.sh` sweeps all four precision variants in the order below, running the GRPO control where available, then score centering in `none`, `tis`, `mis` order:
 
 | Variant | Rollout weights / KV cache | Training |
 | --- | --- | --- |
@@ -20,6 +20,10 @@ Each rollout has 32 prompts × 8 responses, matching the global batch size of 25
 The scripts use `/root/miles` (installed revision `8e419cc739`), which includes score centering and language-only LoRA mappings for attention, GDN, and MLP projections. W8A16 training requires Transformer Engine debug features and `nvidia-dlframework-inspect`; it keeps BF16 weight storage and GEMMs. Benchmark scripts and logs belong under `/tmp/score_centering_tuning/`.
 
 All variants use **TITO v1** through eight Miles session-server workers, the `qwen38small` tokenizer family, and matching `qwen3` reasoning / `qwen3_coder` tool parsers. The single-turn [rollout callback](rollout.py) sends the dataset's messages through the session endpoint; the server owns chat templating, generated token IDs, and sampling probabilities.
+
+All variants set `--async-data-buffer-capacity-factor 64`: the completed-rollout buffer can hold 2048 prompt groups, or 16,384 responses (64 batches), in addition to in-flight generation. This lets generation run farther ahead of training, increasing host-memory use and sample staleness; throughput improvement remains to be measured.
+
+All training scripts enable `--use-distributed-post`, which dispatches HTTP requests through eight Ray actors on this single-node, eight-GPU setup. This isolates HTTP I/O from synchronous debug dumps and batch preparation in the fully async rollout actor. It is a mitigation for intermittent session `ClientDisconnect` errors and empty HTTP retry messages; the existing logs do not record the client exception type, so confirming that it eliminates the errors requires a run with the flag enabled. The change takes effect when each training script next launches.
 
 From the RL repository root, with checkpoints and datasets under `/root/models` and `/root/datasets`:
 

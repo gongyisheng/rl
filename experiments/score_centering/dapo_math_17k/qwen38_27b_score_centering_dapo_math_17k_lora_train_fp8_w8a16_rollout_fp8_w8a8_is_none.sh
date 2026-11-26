@@ -54,6 +54,9 @@ LORA_ARGS=(
 
 ROLLOUT_ARGS=(
    --fully-async
+   --async-data-buffer-capacity-factor 64
+   # Keep HTTP I/O off the rollout actor during debug dumps and batch preparation.
+   --use-distributed-post
    # Keep three TP2 rollout replicas busy without changing the training batch.
    --async-max-concurrent-samples "$((3 * rollout_requests_per_engine))"
    --use-session-server v1
